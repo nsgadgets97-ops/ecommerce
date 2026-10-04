@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Store Admin Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --dark: #0f172a;
+      --border: #e2e8f0;
+      --bg-light: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding-bottom: 50px;
+    }
+
+    .admin-container {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 0 14px;
+    }
+
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .tabs-nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 8px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      color: #64748b;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--dark);
+      color: #fff;
+    }
+
+    .sub-tabs-bar {
+      display: flex;
+      gap: 6px;
+      background: #e2e8f0;
+      padding: 5px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .sub-tabs-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sub-tab-btn {
+      background: transparent;
+      border: none;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #475569;
+      white-space: nowrap;
+    }
+
+    .sub-tab-btn.active {
+      background: #ffffff;
+      color: var(--dark);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Table Design */
+    .data-table-wrapper {
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .data-table th {
+      background: var(--bg-light);
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #64748b;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.86rem;
+      vertical-align: middle;
+    }
+
+    .badge-paid {
+      background: #ecfdf5;
+      color: var(--success);
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      display: inline-block;
+    }
+
+    .badge-status {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      background: #f1f5f9;
+      color: #334155;
+    }
+
+    .btn-action {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-accept {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-pack {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-dispatch {
+      background: var(--warning);
+      color: #fff;
+    }
+
+    .btn-deliver {
+      background: #475569;
+      color: #fff;
+    }
+
+    /* Modal / Bottom Drawer Mobile Responsive */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(3px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 540px;
+      padding: 22px 18px;
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: 0 15px 25px rgba(0, 0, 0, 0.25);
+      position: relative;
+      word-break: break-word;
+    }
+
+    @media (max-width: 600px) {
+      .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+      }
+
+      .modal-box {
+        border-radius: 18px 18px 0 0;
+        max-height: 85vh;
+        padding: 20px 16px 32px 16px;
+      }
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 1.6rem;
+      cursor: pointer;
+      color: #64748b;
+    }
+
+    /* Thumbnail Gallery in Edit Mode */
+    .existing-images-grid {
+      display: flex;
+      gap: 12px;
+      margin: 10px 0;
+      flex-wrap: wrap;
+    }
+
+    .thumb-item {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+    }
+
+    .thumb-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .thumb-delete-btn {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      background: rgba(220, 38, 38, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Button Loading Spinner */
+    .spinner {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.6s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+
+<body>
+
+  <!-- Admin Login Screen -->
+  <div id="adminLoginBox" class="admin-container" style="max-width: 400px; margin-top: 80px;">
+    <div
+      style="background: #fff; padding: 26px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.04);">
+      <h2 style="margin-bottom: 18px;">Admin Login</h2>
+      <form id="adminLoginForm">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Username</label>
+          <input type="text" id="adminUsername" required
+            style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Password</label>
+          <input type="password" id="adminPassword" required
+            style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 10px;">Login to Admin</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Main Dashboard -->
+  <div id="adminApp" class="admin-container" style="display: none;">
+    <div
+      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+      <!-- Left Side: Title -->
+      <h2 style="margin: 0; font-size: 1.5rem;">Admin Control Panel</h2>
+
+      <!-- Right Side: Buttons -->
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <a href="admin-settings.html" class="btn-primary"
+          style="padding: 7px 14px; text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 5px;">
+          <span>⚙️</span> Admin & Customers
+        </a>
+        <button id="adminLogoutBtn" class="btn-secondary" style="padding: 7px 14px; font-size: 0.9rem;">
+          Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" data-tab="ordersTab">Orders</button>
+      <button class="tab-btn" data-tab="productsTab">Products</button>
+      <button class="tab-btn" data-tab="categoriesTab">Categories</button>
+      <button class="tab-btn" data-tab="banners">Banners</button>
+      <button class="tab-btn" data-tab="settingsTab">Global Settings</button>
+    </div>
+
+    <!-- 1. Orders Panel -->
+    <div id="ordersTab" class="tab-panel active">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3>Customer Orders Pipeline</h3>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <input type="text" id="orderSearchInput" placeholder="🔍 Search by Order ID, Phone, or Customer Name..."
+          style="width: 100%; max-width: 450px; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;"
+          oninput="filterOrders()" />
+      </div>
+      <!-- Sub-Tabs for Order Status Pipeline -->
+      <div class="sub-tabs-bar">
+        <button class="sub-tab-btn active" onclick="filterOrders('All')">All Orders</button>
+        <button class="sub-tab-btn" onclick="filterOrders('Pending')">Pending</button>
+        <button class="sub-tab-btn" onclick="filterOrders('Accepted')">Accepted (To Pack)</button>
+        <button class="sub-tab-btn" onclick="filterOrders('Packed')">Packed (To Dispatch)</button>
+        <button class="sub-tab-btn" onclick="filterOrders('Dispatched')">Dispatched</button>
+        <button class="sub-tab-btn" onclick="filterOrders('Delivered')">Delivered</button>
+      </div>
+
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Order ID & Date</th>
+              <th>Customer Details</th>
+              <th>Products Ordered</th>
+              <th>Status</th>
+              <th style="min-width: 160px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ordersTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center;">Orders loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2. Products Panel -->
+    <div id="productsTab" class="tab-panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3>Store Products</h3>
+        <button id="toggleAddProductBtn" class="btn-primary" onclick="openAddProductModal()" style="padding: 8px 16px;">
+          + Add New Product
+        </button>
+      </div>
+
+      <!-- Add / Edit Product Collapsible Drawer -->
+      <div id="productFormWrapper"
+        style="display: none; background: #fff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 22px; box-shadow: 0 4px 6px rgba(0,0,0,0.03);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h4 id="productFormTitle" style="font-size: 1.05rem;">Add New Product</h4>
+          <button type="button" onclick="closeProductForm()"
+            style="background: none; border: none; font-size: 1.4rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <form id="addProductForm">
+          <input type="hidden" id="editProductId" value="" />
+
+          <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+            <div class="form-group" style="flex: 2; min-width: 220px;">
+              <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem;">Product Title
+                *</label>
+              <input type="text" id="pTitle" required
+                style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+            </div>
+            <div class="form-group" style="flex: 2; min-width: 220px;">
+              <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem;">Product
+                Description *</label>
+              <!-- <input type="text" id="productEditor" required style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;" /> -->
+              <!-- इसे बदलें -->
+              <div id="productEditor"
+                style="width: 100%; height: 120px; background: white; border-radius: 6px; border: 1px solid #cbd5e1;">
+              </div>
+            </div>
+
+            <div class="form-group" style="flex: 1; min-width: 150px;">
+              <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem;">Category
+                *</label>
+              <select id="pCategory" required
+                style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;"></select>
+            </div>
+          </div>
+
+          <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+            <div class="form-group" style="flex: 1; min-width: 100px;">
+              <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem;">Price (₹)
+                *</label>
+              <input type="number" id="pPrice" required
+                style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 100px;">
+              <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem;">MRP (₹)</label>
+              <input type="number" id="pMrp"
+                style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 120px;">
+              <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem;">Custom Advance
+                (₹)</label>
+              <input type="number" id="pCustomAdvance" placeholder="Default lagega"
+                style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+            </div>
+            <div class="form-group"
+              style="flex: 1; min-width: 100px; display: flex; align-items: flex-end; padding-bottom: 8px;">
+              <label
+                style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem;">
+                <input type="checkbox" id="pInStock" checked style="width: 18px; height: 18px;" />
+                In Stock (Active)
+              </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: 600;">YouTube Video Link (Optional)</label>
+              <input type="url" id="pYoutubeLink" placeholder="https://www.youtube.com/watch?v=..."
+                style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;" />
+            </div>
+
+            <!-- Variants Section -->
+            <div
+              style="margin-bottom: 15px; padding: 15px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px;">
+              <label style="display: block; font-weight: 600; color: var(--primary);">Product Variants</label>
+              <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 10px;">Jaise- Color, Size. Agar kisi variant
+                ka price alag hai, toh "Price Different" checkbox par tick karein.</p>
+
+              <div id="variantsContainer"></div>
+
+              <button type="button" onclick="addVariantBlock()" class="btn-custom"
+                style="background: #0284c7; color: #fff; font-size: 0.8rem; margin-top: 10px;">+ Add New Variant
+                Type</button>
+            </div>
+          </div>
+
+          <!-- Existing Images Grid in Edit Mode -->
+          <div id="existingImagesContainer" style="display: none; margin-bottom: 14px;">
+            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem;">Current Images
+              (Click × to remove):</label>
+            <div id="existingImagesGrid" class="existing-images-grid"></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 18px;">
+            <label id="pImageLabel"
+              style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem;">Upload Images (Max 3)
+              *</label>
+            <input type="file" id="pImageFile" accept="image/*" multiple style="width: 100%;" />
+            <small id="imageHint" style="color: #64748b; font-size: 0.78rem; display: block; margin-top: 4px;">Edit mode
+              mein agar nayi photos nahi chunte toh purani safe rahengi.</small>
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <button type="submit" id="pSubmitBtn" class="btn-primary" style="padding: 9px 20px;">
+              <span id="pBtnSpinner" class="spinner" style="display: none;"></span>
+              <span id="pBtnText">Save Product</span>
+            </button>
+            <button type="button" class="btn-secondary" onclick="closeProductForm()"
+              style="padding: 9px 16px;">Cancel</button>
+          </div>
+        </form>
+      </div>
+      <!-- Sub-Tabs for Product Status -->
+      <div class="sub-tabs-bar" id="productFilterTabs" style="margin-bottom: 16px;">
+        <button class="sub-tab-btn active" data-status="all" onclick="setProductFilter('all')">All Products</button>
+        <button class="sub-tab-btn" data-status="active" onclick="setProductFilter('active')">Active (In Stock)</button>
+        <button class="sub-tab-btn" data-status="inactive" onclick="setProductFilter('inactive')">Inactive (Out of
+          Stock)</button>
+      </div>
+      <!-- Search & Filters -->
+      <!-- Search & Filters -->
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px; flex: 1; max-width: 550px;">
+          <input type="text" id="productSearchInput" placeholder="🔍 Search product by title..."
+            style="flex: 1; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px;"
+            oninput="handleProductSearch()" />
+
+          <select id="productSortSelect" onchange="handleProductSearch()"
+            style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; background: white;">
+            <option value="newest">Sort: Newest First</option>
+            <option value="oldest">Sort: Oldest First</option>
+            <option value="priceHigh">Price: High to Low</option>
+            <option value="priceLow">Price: Low to High</option>
+          </select>
+        </div>
+        <span id="productCountBadge" style="font-size: 0.85rem; color: #64748b; font-weight: 600;">0 Products</span>
+      </div>
+
+      <!-- Products List Table -->
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 60px;">Image</th>
+              <th>Product Title</th>
+              <th>Category</th>
+              <th>Price & Adv.</th>
+              <th style="text-align: center; width: 170px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productsTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center;">Loading products...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3. Categories Panel -->
+    <div id="categoriesTab" class="tab-panel">
+      <h3>Create Category</h3>
+      <form id="addCategoryForm" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+        <input type="hidden" id="editCategoryId" value="">
+        <input type="text" id="catNameInput" placeholder="Category Name" required
+          style="padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        <input type="file" id="catImageInput" accept="image/*" required />
+        <button type="submit" id="catSubmitBtn" class="btn-primary">Add</button>
+        <button type="button" id="catCancelBtn" class="btn-secondary" style="display: none;"
+          onclick="resetCategoryForm()">Cancel</button>
+      </form>
+      <ul id="adminCategoryList" style="list-style: none; padding: 0;"></ul>
+    </div>
+
+    <!-- 4. Banners Section -->
+    <div id="banners" class="tab-panel">
+      <h2>Manage Homepage Banners</h2>
+      <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Note: Maximum 4 banners active ho sakte hain.</p>
+
+      <form id="addBannerForm" style="margin-bottom: 30px;">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="display: block; margin-bottom: 5px;">Banner Image (Will upload to GitHub) *</label>
+          <input type="file" id="bannerImageInput" accept="image/*" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px;">Target Link (Product link yahan paste karein)</label>
+          <input type="text" id="bannerLinkInput" placeholder="e.g., http://.../frontend/index.html?product=..."
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        </div>
+        <button type="submit" class="btn-primary">Upload Banner</button>
+      </form>
+
+      <h3>Active Banners</h3>
+      <ul id="adminBannerList" style="list-style: none; padding: 0;"></ul>
+    </div>
+
+    <!-- 5. Global Settings Panel -->
+    <div id="settingsTab" class="tab-panel">
+      <h3>Store Global Settings</h3>
+      <form id="globalSettingsForm"
+        style="background: #fff; padding: 18px; border-radius: 10px; border: 1px solid var(--border); max-width: 500px;">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Default Advance Payment (₹) *</label>
+          <input type="number" id="settingDefaultAdvance" required placeholder="e.g. 300"
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Admin UPI ID</label>
+          <input type="text" id="settingUpiId" placeholder="name@upi"
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Admin WhatsApp Number</label>
+          <input type="tel" id="settingWhatsapp" placeholder="919876543210"
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">UPI QR Code Image</label>
+          <input type="file" id="settingQrFile" accept="image/*" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Announcement Message</label>
+          <input type="text" id="announcement1" placeholder="name@upi"
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Announcement Message 2</label>
+          <input type="text" id="announcement2" placeholder="919876543210"
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Announcement Message 3</label>
+          <input type="text" id="announcement3" accept="image/*" />
+        </div>
+
+        <button type="submit" class="btn-primary">Save Settings</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Order Detailed View Modal (Mobile Drawer Friendly) -->
+  <div class="modal-overlay" id="orderDetailModal">
+    <div class="modal-box">
+      <button class="modal-close-btn" onclick="closeOrderModal()">&times;</button>
+      <h3 style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">Order Full Details
+      </h3>
+      <div id="orderModalContent"></div>
+    </div>
+  </div>
+  <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+
+</html>

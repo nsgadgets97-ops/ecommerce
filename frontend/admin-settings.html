@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Settings & Customers</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* Dedicated Styles for Admin Settings Page to guarantee perfect UI */
+    :root {
+      --primary: #2563eb;
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --border: #e2e8f0;
+      --bg-light: #f8fafc;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    body {
+      background-color: #f1f5f9;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding-bottom: 50px;
+    }
+
+    .admin-container {
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 0 16px;
+    }
+
+    /* Top Header Flexbox */
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+
+    .header-title {
+      margin: 0;
+      font-size: 1.6rem;
+      color: var(--text-main);
+    }
+
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    .btn-custom {
+      display: inline-block;
+      padding: 9px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    
+    .btn-pwd { background: #f59e0b; color: #000; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2); }
+    .btn-new-admin { background: var(--success); color: #fff; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2); }
+    .btn-back { background: #fff; color: var(--text-main); border: 1px solid #cbd5e1; }
+    .btn-back:hover { background: var(--bg-light); }
+
+    /* Table Design */
+    .table-card {
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+      overflow-x: auto;
+    }
+
+    .customer-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      min-width: 600px;
+    }
+
+    .customer-table th {
+      background: var(--bg-light);
+      padding: 14px 16px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .customer-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    /* Input with Icon Wrapper */
+    .password-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .password-wrapper input {
+      width: 100%;
+      padding: 10px;
+      padding-right: 40px; /* Space for the eye icon */
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    .eye-btn {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (max-width: 650px) {
+      .header-section {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .action-buttons {
+        flex-wrap: wrap;
+        width: 100%;
+      }
+      .btn-custom {
+        flex: 1 1 auto;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    
+    <div class="header-section">
+      <h2 class="header-title">Customers Database</h2>
+      <div class="action-buttons">
+        <button onclick="openModal('changePasswordModal')" class="btn-custom btn-pwd">🔑 Change Password</button>
+        <button onclick="openModal('createAdminModal')" class="btn-custom btn-new-admin">+ New Admin</button>
+        <a href="admin.html" class="btn-custom btn-back">Back to Dashboard</a>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <table class="customer-table">
+        <thead>
+          <tr>
+            <th>Customer Name</th>
+            <th>Phone Number</th>
+            <th>City / State</th>
+            <th>Joined Date</th>
+          </tr>
+        </thead>
+        <tbody id="customersTableBody">
+          <tr><td colspan="4" style="text-align: center; padding: 30px; color: #64748b;">Loading customers data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 1. Change Password Modal -->
+  <div class="modal-overlay" id="changePasswordModal">
+    <div class="modal-box" style="max-width: 420px;">
+      <button type="button" class="modal-close-btn" onclick="closeModal('changePasswordModal')">&times;</button>
+      <h3 style="margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Change My Password</h3>
+      
+      <form id="changePasswordForm" autocomplete="off">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Current Password *</label>
+          <input type="password" id="oldPassword" autocomplete="new-password" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" />
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">New Password *</label>
+          <input type="password" id="newPassword" autocomplete="new-password" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" />
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Confirm New Password *</label>
+          <div class="password-wrapper">
+            <input type="password" id="confirmNewPassword" autocomplete="new-password" required />
+            <button type="button" class="eye-btn" onclick="togglePasswordVisibility('confirmNewPassword', 'eyeIcon1')" id="eyeIcon1">👁️</button>
+          </div>
+          <small id="pwdMatchStatus" style="display: none; margin-top: 5px; font-weight: 600;"></small>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" class="btn-custom btn-new-admin" style="flex: 1; padding: 10px;">Update Password</button>
+          <button type="button" class="btn-custom btn-back" onclick="closeModal('changePasswordModal')" style="padding: 10px;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Create New Admin Modal -->
+  <div class="modal-overlay" id="createAdminModal">
+    <div class="modal-box" style="max-width: 420px;">
+      <button type="button" class="modal-close-btn" onclick="closeModal('createAdminModal')">&times;</button>
+      <h3 style="margin-bottom: 5px;">Create New Admin</h3>
+      <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">New user will have full Super Admin access.</p>
+      
+      <form id="createAdminForm" autocomplete="off">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">New Username *</label>
+          <input type="text" id="newAdminUsername" autocomplete="nope" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" />
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Password *</label>
+          <input type="password" id="newAdminPassword" autocomplete="new-password" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" />
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Confirm Password *</label>
+          <div class="password-wrapper">
+            <input type="password" id="confirmAdminPassword" autocomplete="new-password" required />
+            <button type="button" class="eye-btn" onclick="togglePasswordVisibility('confirmAdminPassword', 'eyeIcon2')" id="eyeIcon2">👁️️</button>
+          </div>
+          <small id="adminPwdMatchStatus" style="display: none; margin-top: 5px; font-weight: 600;"></small>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" class="btn-custom btn-new-admin" style="flex: 1; padding: 10px;">Create Admin</button>
+          <button type="button" class="btn-custom btn-back" onclick="closeModal('createAdminModal')" style="padding: 10px;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="addressModal" style="display: none;">
+    <div class="modal-box" style="max-width: 400px; text-align: center;">
+      <button type="button" class="modal-close-btn" onclick="closeModal('addressModal')">&times;</button>
+      <h3 style="margin-bottom: 12px; color: var(--primary);">📍 Customer Address</h3>
+      
+      <!-- JavaScript इसी ID को ढूँढ रहा था -->
+      <p id="customerFullAddressText" style="font-size: 1rem; color: var(--text-main); line-height: 1.5; padding: 10px; background: var(--bg-light); border-radius: 8px; border: 1px solid var(--border); min-height: 60px;"></p>
+      
+      <button type="button" class="btn-custom btn-back" style="margin-top: 15px; width: 100%;" onclick="closeModal('addressModal')">Close</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/admin-settings.js"></script>
+</body>
+</html>

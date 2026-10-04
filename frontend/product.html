@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Details</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <style>
+    .product-page-container { max-width: 1100px; margin: 20px auto; padding: 20px; display: flex; flex-wrap: wrap; gap: 30px; background: #fff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+    .product-gallery { flex: 1; min-width: 300px; }
+    .main-image { width: 100%; height: 400px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px; background: #f8fafc; }
+    .thumb-row { display: flex; gap: 10px; }
+    .thumb-img { width: 70px; height: 70px; object-fit: cover; border: 2px solid transparent; border-radius: 6px; cursor: pointer; }
+    .thumb-img.active { border-color: #059669; }
+    .product-info { flex: 1; min-width: 300px; display: flex; flex-direction: column; }
+    .prod-title { font-size: 1.8rem; font-weight: 700; margin-bottom: 10px; color: #0f172a; }
+    .prod-category { font-size: 0.9rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
+    .variant-group { margin-bottom: 15px; }
+    .variant-label { font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; display: block; color: #334155; }
+    .variant-options { display: flex; flex-wrap: wrap; gap: 10px; }
+    .variant-btn { background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: #475569; transition: all 0.2s ease-in-out; }
+    .variant-btn:hover { border-color: #94a3b8; }
+    .variant-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; font-weight: 600; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+    .prod-price-box { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; }
+    .prod-sell-price { font-size: 2rem; font-weight: 800; color: #059669; }
+    .prod-mrp { font-size: 1.2rem; color: #94a3b8; text-decoration: line-through; margin-left: 10px; }
+    .adv-badge { display: inline-block; margin-top: 10px; background: #fef3c7; color: #b45309; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; }
+    .action-buttons { display: flex; gap: 15px; margin-top: 30px; }
+    .btn-large { flex: 1; padding: 16px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; text-align: center; }
+    .whatsapp-float { position: fixed; bottom: 90px; right: 20px; background-color: #fff; border: 2px solid #25d366; border-radius: 30px; display: flex; align-items: center; gap: 8px; padding: 8px 16px; text-decoration: none; z-index: 1000; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); width: max-content; }
+    #productDescriptionDisplay ul, #productDescriptionDisplay ol { padding-left: 24px; margin-bottom: 12px; }
+    #productDescriptionDisplay li { margin-bottom: 6px; }
+    .btn-add { background: #0f172a; color: #fff; }
+    .btn-buy { background: #059669; color: #fff; }
+    #productDescriptionDisplay { color: #475569; line-height: 1.6; margin-bottom: 20px; }
+    #productDescriptionDisplay strong, #productDescriptionDisplay b { font-weight: bold; color: #000; }
+    #productDescriptionDisplay em, #productDescriptionDisplay i { font-style: italic; }
+    #productDescriptionDisplay h1, #productDescriptionDisplay h2, #productDescriptionDisplay h3 { margin-top: 10px; margin-bottom: 10px; color: #000; }
+    @media (max-width: 768px) {
+      .product-page-container { margin: 0; border-radius: 0; padding: 15px; }
+      .main-image { height: 300px; }
+      .action-buttons { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 10px 15px; margin: 0; box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1); z-index: 100; }
+      body { padding-bottom: 80px; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="navbar">
+    <div class="nav-container" style="max-width: 1100px; margin: auto; padding: 10px; display: flex; justify-content: space-between;">
+      <a href="index.html" style="text-decoration: none; color: inherit; font-size: 1.2rem; font-weight: bold;">⬅ Back to Store</a>
+      <div class="nav-actions">
+        <button id="openCartBtn" class="cart-btn-wrap btn-secondary" style="display:flex; align-items:center; gap:5px; padding: 6px 12px;">
+          🛒 Cart <span class="cart-badge" id="cartCount">0</span>
+        </button>
+    </div>
+  </header>
+
+  <div class="product-page-container" id="productContainer">
+    <h2 style="text-align: center; width: 100%;">Loading Product...</h2>
+  </div>
+  <div id="relatedProductsSection" style="max-width: 1100px; margin: 40px auto 20px; padding: 0 20px; display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px;">
+      <h3 style="font-size: 1.4rem; color: #0f172a; margin: 0;">More from this Category</h3>
+      <a id="viewAllCategoryBtn" href="#" style="color: #0369a1; font-weight: 600; text-decoration: none; font-size: 0.95rem;">View All &rarr;</a>
+    </div>
+    <div id="relatedProductsGrid" class="product-grid"></div>
+  </div>
+  <!-- Cart Drawer / Modal (Product Page ke liye) -->
+  <div class="modal-overlay" id="cartModal" style="display: none;">
+    <div class="modal-content" style="max-width: 480px;">
+      <button class="close-modal-btn" id="closeCartModal">&times;</button>
+      <h3 class="modal-heading">Your Cart</h3>
+      <div id="cartItemsList" style="max-height: 280px; overflow-y: auto; margin-bottom: 15px;"></div>
+      <div class="price-breakdown" style="margin-bottom: 15px;">
+        <div class="price-row" style="display: flex; justify-content: space-between; font-weight: 600;">
+          <span>Total Cart Value:</span>
+          <span id="cartTotalPrice">₹0</span>
+        </div>
+      </div>
+      <button id="cartCheckoutBtn" class="btn-primary" style="width: 100%;">Proceed to Checkout</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/checkout.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const productId = urlParams.get('id');
+
+      try {
+        const setRes = await fetch(`${CONFIG.BASE_URL}/settings`);
+        const setData = await setRes.json();
+        if (setData.success && setData.data) {
+          CONFIG.globalAdvancePayment = setData.data.defaultAdvanceAmount !== undefined ? setData.data.defaultAdvanceAmount : (setData.data.defaultAdvancePayment || 300);
+          if (setData.data.whatsappNumber) {
+            const waBtn = document.getElementById('floatingWaBtn');
+            if (waBtn) {
+              let cleanPhone = String(setData.data.whatsappNumber).replace(/\D/g, '');
+              if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
+              waBtn.href = `https://wa.me/${cleanPhone}?text=Need%20Help%20with%20a%20product`;
+              waBtn.style.display = 'flex'; 
+            }
+          }
+        }
+      } catch (err) { console.log('Settings load error:', err); }
+
+      if (!productId) { document.getElementById('productContainer').innerHTML = '<h2>Product Not Found</h2>'; return; }
+
+      try {
+        const res = await fetch(`${CONFIG.BASE_URL}/products/${productId}`);
+        const data = await res.json();
+        if (data.success && (data.data || data.product)) { renderProductPage(data.data || data.product); } 
+        else { document.getElementById('productContainer').innerHTML = '<h2>Product Not Found</h2>'; }
+      } catch (err) { document.getElementById('productContainer').innerHTML = '<h2>Error loading product</h2>'; }
+    });
+
+    window.changeMainImage = function(thumbElement, imageUrl) {
+      document.getElementById('mainProductImage').src = imageUrl;
+      document.querySelectorAll('.thumb-img').forEach(el => el.classList.remove('active'));
+      thumbElement.classList.add('active');
+    }
+
+    function renderProductPage(p) {
+      const container = document.getElementById('productContainer');
+      const images = (p.images && p.images.length > 0) ? p.images : (p.imageUrl ? [p.imageUrl] : ['https://placehold.co/400']);
+      const advance = p.advancePayment !== undefined && p.advancePayment !== null && p.advancePayment !== "" ? p.advancePayment : (CONFIG.globalAdvancePayment || 300);
+      const categoryName = p.category?.name || 'Store Item';
+
+      let thumbHTML = '';
+      if (images.length > 1) {
+        thumbHTML = images.map((img, i) => `<img src="${img}" class="thumb-img ${i === 0 ? 'active' : ''}" onclick="changeMainImage(this, '${img}')" />`).join('');
+      }
+
+      let youtubeHTML = '';
+      if (p.youtubeLink) {
+        let embedLink = p.youtubeLink.includes('watch?v=') ? p.youtubeLink.replace('watch?v=', 'embed/') : p.youtubeLink;
+        youtubeHTML = `
+            <div style="margin-top: 20px; width: 100%;">
+                <h3 style="font-size: 1.1rem; margin-bottom: 10px;">Product Video</h3>
+                <iframe width="100%" height="250" src="${embedLink}" frameborder="0" allowfullscreen style="border-radius: 8px; border: 1px solid #e2e8f0;"></iframe>
+            </div>`;
+      }
+
+      // Variant Logic With Bug Fix [object Object]
+      let variantsHTML = '';
+      if (p.variants && p.variants.length > 0) {
+        variantsHTML = `<div id="productVariantsContainer" style="margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;">`;
+
+        p.variants.forEach((variant, vIndex) => {
+          let varName = variant.name || variant.variantType || 'Option';
+          if (typeof varName === 'object') varName = varName.name || varName.value || 'Option';
+
+          if (variant.options && variant.options.length > 0) {
+            let firstOpt = variant.options[0];
+            let defaultOptValue = typeof firstOpt === 'object' ? (firstOpt.name || firstOpt.value || firstOpt.optionName || firstOpt.label || 'Unknown') : firstOpt;
+
+            variantsHTML += `<div class="variant-group">
+                      <span class="variant-label">${varName}: <span id="selected-val-${vIndex}" style="color: #059669; font-weight: 700;">${defaultOptValue}</span></span>
+                      <div class="variant-options">`;
+
+            variant.options.forEach((opt, oIndex) => {
+              let optValue = typeof opt === 'object' ? (opt.name || opt.value || opt.optionName || opt.label || 'Unknown') : opt;
+              const isActive = oIndex === 0 ? 'active' : '';
+              variantsHTML += `<button class="variant-btn ${isActive}" data-group="${varName}" data-val="${optValue}" onclick="selectVariant(this, ${vIndex}, '${optValue}')">${optValue}</button>`;
+            });
+
+            variantsHTML += `</div></div>`;
+          }
+        });
+        variantsHTML += `</div>`;
+      }
+
+      let actionButtonsHTML = p.inStock === false
+        ? `<div style="color: #dc2626; background: #fee2e2; border: 1px solid #f87171; font-size: 1.5rem; font-weight: 800; text-align: center; margin-top: 30px; padding: 15px; border-radius: 8px;">🚫 OUT OF STOCK</div>`
+        : `<div class="action-buttons">
+                <button class="btn-large btn-add" onclick="addSingleToCartWithVariant('${p._id}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, '${images[0]}')">Add to Cart</button>
+                <button class="btn-large btn-buy" onclick="window.buyNowWithVariant('${p._id}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, '${images[0]}', ${advance})">Buy Now</button>
+            </div>`;
+
+      container.innerHTML = `
+            <div class="product-gallery">
+                <img src="${images[0]}" id="mainProductImage" class="main-image" />
+                <div class="thumb-row">${thumbHTML}</div>
+                ${youtubeHTML}
+            </div>
+            <div class="product-info">
+                <div class="prod-category">${categoryName}</div>
+                
+                <!-- Title और Share बटन एक ही लाइन में -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                    <h1 class="prod-title" style="margin-bottom: 5px;">${p.title}</h1>
+                    <button onclick="shareProduct('${p.title.replace(/'/g, "\\'")}', '${p.price}')" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 20px; cursor: pointer; color: #0f172a; font-weight: 600; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                        <i class="fas fa-share-alt"></i> Share
+                    </button>
+                </div>
+                
+                <!-- Views & Likes UI (अभी के लिए कमेंट कर दिया गया है) -->
+                <!--
+                <div style="display: flex; gap: 15px; margin-bottom: 15px; color: #64748b; font-size: 0.9rem; align-items: center;">
+                    <span>👁️ <span id="viewCountDisplay">${p.views || 0}</span> Views</span>
+                    <button onclick="handleLikeProduct('${p._id}')" id="likeBtn" style="background: none; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 20px; cursor: pointer; color: #64748b; display: flex; align-items: center; gap: 5px;">
+                        🤍 <span id="likeCountDisplay">${p.likes || 0}</span>
+                    </button>
+                </div>
+                -->
+
+                <div class="prod-price-box" style="margin-top: 15px;">
+                    <span class="prod-sell-price">${CONFIG.CURRENCY}${p.price}</span>
+                    ${p.mrp ? `<span class="prod-mrp">${CONFIG.CURRENCY}${p.mrp}</span>` : ''}
+                    <br/>
+                    <div class="adv-badge">Advance to pay: ${CONFIG.CURRENCY}${advance}</div>
+                </div>
+                
+                ${variantsHTML}
+                
+                <div id="productDescriptionDisplay">${p.description || '<p>Premium quality product delivered safely.</p>'}</div>
+                ${actionButtonsHTML}
+            </div>
+        `;
+
+      // trackProductView(p._id); // इसे भी कमेंट कर दिया है ताकि बैकएंड पर फालतू व्यूज़ हिट न हों
+      const catId = p.category?._id || p.category;
+      if (catId) { loadRelatedProducts(catId, p._id); }
+    }
+
+    function trackProductView(productId) {
+      let viewed = JSON.parse(sessionStorage.getItem('session_views')) || [];
+      if (!viewed.includes(productId)) {
+        viewed.push(productId);
+        sessionStorage.setItem('session_views', JSON.stringify(viewed));
+      }
+    }
+
+    async function loadRelatedProducts(categoryId, currentProductId) {
+      try {
+        const res = await fetch(`${CONFIG.BASE_URL}/products?categoryId=${categoryId}`);
+        const data = await res.json();
+        if (data.success && (data.data || data.products)) {
+          let products = data.data || data.products;
+          products = products.filter(p => p._id !== currentProductId);
+          if (products.length > 0) {
+            document.getElementById('relatedProductsSection').style.display = 'block';
+            document.getElementById('viewAllCategoryBtn').href = `index.html?category=${categoryId}`;
+            const top4 = products.slice(0, 4);
+            const grid = document.getElementById('relatedProductsGrid');
+
+            grid.innerHTML = top4.map(p => {
+              const img = p.thumbnailUrl || (p.images && p.images.length > 0 ? p.images[0] : (p.imageUrl || 'https://placehold.co/200'));
+              let actionHtml = p.inStock === false
+                ? `<div style="color: #dc2626; font-size: 0.85rem; font-weight: bold; background: #fee2e2; padding: 8px; border-radius: 4px;">Out of Stock</div>`
+                : `<button onclick="window.addSingleToCart('${p._id}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, '${img}')" style="background: #0f172a; color: #fff; border: none; padding: 8px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: 600;">Add to Cart</button>`;
+
+              return `
+                        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #fff; text-align: center; display: flex; flex-direction: column;">
+                            <img src="${img}" style="width: 100%; height: 160px; object-fit: contain; cursor: pointer; margin-bottom: 10px;" onclick="window.location.href='product.html?id=${p._id}'">
+                            <h4 style="font-size: 0.95rem; margin: 0 0 5px; color: #0f172a; cursor: pointer; flex-grow: 1;" onclick="window.location.href='product.html?id=${p._id}'">${p.title}</h4>
+                            <div style="color: #059669; font-weight: bold; margin-bottom: 10px;">${CONFIG.CURRENCY}${p.price}</div>
+                            ${actionHtml}
+                        </div>`;
+            }).join('');
+          }
+        }
+      } catch (e) { console.error("Related products fetch error", e); }
+    }
+
+    window.handleLikeProduct = function (productId) {
+      let liked = JSON.parse(localStorage.getItem('liked_products')) || [];
+      if (!liked.includes(productId)) {
+        liked.push(productId);
+        localStorage.setItem('liked_products', JSON.stringify(liked));
+        const likeDisplay = document.getElementById('likeCountDisplay');
+        likeDisplay.textContent = parseInt(likeDisplay.textContent) + 1;
+        document.getElementById('likeBtn').innerHTML = `❤️ <span style="color: #ef4444;">${likeDisplay.textContent}</span>`;
+        let sessionLikes = JSON.parse(sessionStorage.getItem('session_likes')) || [];
+        if (!sessionLikes.includes(productId)) sessionLikes.push(productId);
+        sessionStorage.setItem('session_likes', JSON.stringify(sessionLikes));
+      } else { alert('You have already liked this product!'); }
+    };
+
+    window.selectVariant = function (btn, groupIndex, val) {
+      const parent = btn.parentElement;
+      parent.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`selected-val-${groupIndex}`).textContent = val;
+    }
+
+    window.addSingleToCartWithVariant = function (productId, title, basePrice, image, advanceAmount) {
+      let selectedVariants = [];
+      const activeBtns = document.querySelectorAll('.variant-btn.active');
+      activeBtns.forEach(btn => { selectedVariants.push(`${btn.getAttribute('data-group')}: ${btn.getAttribute('data-val')}`); });
+      const totalGroups = document.querySelectorAll('.variant-group').length;
+      if (activeBtns.length < totalGroups) { alert('Please select all product options before adding to cart.'); return; }
+      let finalTitle = selectedVariants.length > 0 ? `${title} (${selectedVariants.join(', ')})` : title;
+      window.addSingleToCart(productId, finalTitle, basePrice, image,advanceAmount);
+    }
+    // Web Share API Logic
+    window.shareProduct = async function(title, price) {
+        const shareData = {
+            title: title,
+            text: `Check out this amazing product: ${title} for just ₹${price}!\n`,
+            url: window.location.href // करंट पेज का लिंक
+        };
+
+        try {
+            if (navigator.share) {
+                // मोबाइल में WhatsApp, Telegram वगैरह के ऑप्शन खुलेंगे
+                await navigator.share(shareData);
+            } else {
+                // अगर कोई पुराने डेस्कटॉप ब्राउज़र पर है, तो लिंक कॉपी हो जाएगा
+                navigator.clipboard.writeText(window.location.href);
+                alert("Product link copied to clipboard!");
+            }
+        } catch (err) {
+            console.log("Error sharing:", err);
+        }
+    }
+  </script>
+
+  <a href="#" id="floatingWaBtn" class="whatsapp-float" target="_blank" style="display: none;">
+    <img src="assets/client.jpg" alt="Logo" class="wa-logo" onerror="this.src='https://placehold.co/30'">
+    <span class="wa-text">Need Help</span>
+    <i class="fab fa-whatsapp wa-icon-img"></i>
+  </a>
+  <div id="footer-container"></div>
+  <script src="js/footer.js"></script>
+</body>
+</html>
