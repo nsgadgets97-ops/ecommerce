@@ -8,7 +8,7 @@ async function cleanupOldOrders(phone) {
   try {
     const twoMonthsAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
     const allOrders = await Order.find({ customerPhone: phone }).sort({ createdAt: -1 });
-    
+
     // Keep minimum 5 orders. Delete anything beyond 5th IF it's older than 60 days.
     if (allOrders.length > 5) {
       for (let i = 5; i < allOrders.length; i++) {
@@ -45,7 +45,7 @@ exports.createOrder = async (req, res) => {
     // Check customer existence upfront taaki new vs existing ka validation handle ho sake
     let existingCustomer = await Customer.findOne({ phone: cleanPhone });
 
-    
+
 
     // Rate Limiting: 5 minutes mein max 3 orders
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -120,7 +120,7 @@ exports.createOrder = async (req, res) => {
         existingCustomer.password = await bcrypt.hash(password.trim(), 10);
       }
 
-      
+
 
       await existingCustomer.save();
     }
@@ -197,7 +197,7 @@ exports.forgotPassword = async (req, res) => {
   try {
     const { phone, pincode, newPassword } = req.body;
     const customer = await Customer.findOne({ phone: phone.trim() });
-    
+
     if (!customer) return res.status(404).json({ success: false, message: 'Account not found.' });
 
     // Check if currently locked
@@ -205,7 +205,7 @@ exports.forgotPassword = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Account is locked for 4 hours. Try again later.' });
     }
 
-    
+
     if (customer.defaultAddress.pincode === pincode.trim()) {
       // Success! Reset password and clear strikes
       customer.password = await bcrypt.hash(newPassword, 10);
@@ -217,7 +217,7 @@ exports.forgotPassword = async (req, res) => {
       // Failed attempt
       customer.failedAttempts = (customer.failedAttempts || 0) + 1;
       let remaining = 3 - customer.failedAttempts;
-      
+
       if (customer.failedAttempts >= 3) {
         customer.lockUntil = new Date(Date.now() + 4 * 60 * 60 * 1000); // Lock for 4 hours
         customer.failedAttempts = 0; // Reset counter for next time
@@ -261,14 +261,14 @@ exports.updateOrderStatus = async (req, res) => {
     if (courierName !== undefined) updateData.courierName = courierName;
 
     const updatedOrder = await Order.findByIdAndUpdate(id, updateData, { new: true });
-    
+
     if (!updatedOrder) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
     res.status(200).json({ success: true, order: updatedOrder });
-  } catch (error) { 
-    res.status(500).json({ success: false, message: error.message }); 
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -279,4 +279,24 @@ exports.getAllOrders = async (req, res) => {
     const orders = await Order.find({}).sort({ createdAt: -1 });
     res.status(200).json({ success: true, orders });
   } catch (error) { res.status(500).json({ success: false }); }
+};
+
+// ... (Aapka upar ka saara code jaise createOrder, updateOrderStatus, getAllOrders waisa hi rahega) ...
+
+// Admin Routes - Delete Order (NAYA FUNCTION)
+exports.deleteOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedOrder = await Order.findByIdAndDelete(id);
+
+    if (!deletedOrder) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    res.status(200).json({ success: true, message: 'Order successfully deleted' });
+  } catch (error) {
+    console.error("Delete Order Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 };

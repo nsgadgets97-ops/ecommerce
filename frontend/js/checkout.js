@@ -287,6 +287,20 @@ function showPaymentSuccessModal(orderId, payAmount, phone, name, isFreeGift) {
         ${CONFIG.adminUpiId ? `<p style="font-size: 0.85rem;">UPI ID: <strong>${CONFIG.adminUpiId}</strong></p>` : ''}
       </div>
       <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 12px;">Please send payment screenshot on WhatsApp to confirm order:</p>
-      <a href="${waUrl}" target="_blank" class="btn-primary" style="display:block; text-decoration:none; background:#25D366; text-align:center; color:#fff; padding:10px; border-radius:6px; font-weight:600;">💬 Send Screenshot on WhatsApp</a>
+      
+      <!-- YAHAN BUTTON CHANGE KIYA HAI -->
+      <button onclick="processWhatsAppRedirect('${waUrl}')" class="btn-primary" style="display:block; width: 100%; border: none; cursor: pointer; text-decoration:none; background:#25D366; text-align:center; color:#fff; padding:10px; border-radius:6px; font-weight:600;">💬 Send Screenshot on WhatsApp</button>
     </div>`;
 }
+
+// YAHAN SE NAYA FUNCTION SHURU HOTA HAI (Ise file ke sabse end mein daal do)
+window.processWhatsAppRedirect = function(waUrl) {
+    // 1. WhatsApp naye tab mein open karo
+    window.open(waUrl, '_blank');
+    
+    // 2. Extra safety ke liye cart poori tarah saaf kar do
+    localStorage.removeItem('user_cart');
+    
+    // 3. Current page ko naye success.html par bhej do
+    window.location.href = 'success.html';
+};

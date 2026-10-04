@@ -52,20 +52,21 @@ exports.loginCustomer = async (req, res) => {
 };
 
 // 2. Normal Forgot Password (Pincode + Birth Year check)
+// 2. Normal Forgot Password (Only Pincode check)
 exports.verifyAndResetPassword = async (req, res) => {
   try {
-    const { phone, pincode, birthYear, newPassword } = req.body;
+    // यहाँ से birthYear हटा दिया गया है
+    const { phone, pincode, newPassword } = req.body;
 
     const customer = await Customer.findOne({ phone: phone.trim() });
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer nahi mila' });
     }
 
-    // Verify Pincode and Birth Year
-    const isPincodeMatch = customer.address && customer.address.pincode === pincode.trim();
-    const isYearMatch = Number(customer.birthYear) === Number(birthYear);
+    // Verify Pincode ONLY (स्कीमा के हिसाब से defaultAddress.pincode चेक किया है)
+    const isPincodeMatch = customer.defaultAddress && customer.defaultAddress.pincode === pincode.trim();
 
-    if (!isPincodeMatch || !isYearMatch) {
+    if (!isPincodeMatch) {
       customer.failedAttempts += 1;
       await customer.save();
 
@@ -76,7 +77,7 @@ exports.verifyAndResetPassword = async (req, res) => {
         canHardReset: customer.failedAttempts >= 3,
         message:
           remaining > 0
-            ? `Pincode ya Birth Year galat hai. ${remaining} attempts bache hain.`
+            ? `Pincode galat hai. ${remaining} attempts bache hain.` // मैसेज भी अपडेट कर दिया है
             : '3 attempts khatam ho gaye. Aap "Reset Account" use kar sakte hain.',
       });
     }

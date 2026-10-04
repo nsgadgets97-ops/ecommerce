@@ -15,5 +15,7 @@ router.get('/all', orderController.getAllOrders);
 // PUT aur PATCH dono allow karein taaki 404 error na aaye
 router.put('/:id/status', orderController.updateOrderStatus);
 router.patch('/:id/status', orderController.updateOrderStatus);
+// NAYA ROUTE: Delete Order ke liye
+router.delete('/delete/:id', orderController.deleteOrder);
 
 module.exports = router;

@@ -310,78 +310,7 @@ async function loadOrders() {
   }
 }
 
-function filterOrders(statusFilter) {
-  document.querySelectorAll('.sub-tab-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.innerText.includes(statusFilter)) btn.classList.add('active');
-  });
 
-  const tbody = document.getElementById('ordersTableBody');
-  let filtered = allOrdersData;
-  if (statusFilter !== 'All') {
-    filtered = allOrdersData.filter(o => o.orderStatus === statusFilter);
-  }
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">No ${statusFilter} orders found.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = filtered.map((o) => {
-    const productFormatted = o.products && o.products.length > 0
-      ? o.products.map(p => `<strong>${p.quantity || 1} ×</strong> ${p.title}`).join('<br/>')
-      : 'No product info';
-
-    let actionHTML = '';
-    if (o.orderStatus === 'Pending') {
-      actionHTML = `<button onclick="updateOrderStatus('${o._id}', 'Accepted')" class="btn-action btn-accept">Accept Order</button>`;
-    } else if (o.orderStatus === 'Accepted') {
-      actionHTML = `<button onclick="updateOrderStatus('${o._id}', 'Packed')" class="btn-action btn-pack">Mark Packed</button>`;
-    } else if (o.orderStatus === 'Packed') {
-      actionHTML = `
-        <input type="text" placeholder="Courier (Delhivery)" id="courier_${o._id}" style="width: 100%; margin-bottom: 4px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.78rem;"/>
-        <input type="text" placeholder="Tracking ID" id="track_${o._id}" style="width: 100%; margin-bottom: 4px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.78rem;"/>
-        <button onclick="dispatchOrder('${o._id}')" class="btn-action btn-dispatch" style="width: 100%;">Dispatch</button>
-      `;
-    } else if (o.orderStatus === 'Dispatched') {
-      actionHTML = `
-        <div style="font-size: 0.78rem; margin-bottom: 4px; color: #475569;">
-          <strong>AWB:</strong> ${o.trackingId || 'N/A'}<br/>
-          <strong>Via:</strong> ${o.courierName || 'Speed Post'}
-        </div>
-        <button onclick="updateOrderStatus('${o._id}', 'Delivered')" class="btn-action btn-deliver" style="width: 100%;">Mark Delivered</button>
-      `;
-    } else if (o.orderStatus === 'Delivered') {
-      actionHTML = `<span style="color: var(--success); font-weight: 700; font-size: 0.8rem;">✔ Delivered</span>`;
-    }
-
-    const dateStr = new Date(o.createdAt).toLocaleDateString('en-IN');
-
-    return `
-      <tr>
-        <td>
-          <a href="javascript:void(0)" onclick="viewOrderDetail('${o._id}')" style="color: var(--primary); font-weight: 700; text-decoration: underline;">
-            ${o.orderId || ('#' + o._id.slice(-6))}
-          </a><br/>
-          <small style="color: #64748b;">${dateStr}</small>
-        </td>
-        <td>
-          <strong>${o.shippingDetails?.name || 'N/A'}</strong><br/>
-          <span style="font-size: 0.8rem;">📞 ${o.customerPhone}</span><br/>
-          <small style="color: #64748b;">${o.shippingDetails?.address || ''}, PIN: ${o.shippingDetails?.pincode || ''}</small>
-        </td>
-        <td>
-          <div style="margin-bottom: 4px; font-size: 0.82rem;">${productFormatted}</div>
-          <span class="badge-paid">${o.paymentType === 'FULL_PAID' ? 'Fully Paid' : 'COD (Adv ₹' + (o.amountToPayOnline || 0) + ')'}</span>
-        </td>
-        <td>
-          <span class="badge-status">${o.orderStatus || 'Pending'}</span>
-        </td>
-        <td>${actionHTML}</td>
-      </tr>
-    `;
-  }).join('');
-}
 
 function viewOrderDetail(orderId) {
   const order = allOrdersData.find(o => o._id === orderId);
@@ -861,7 +790,7 @@ function filterOrders(statusFilter = null) {
     return;
   }
 
-  // HTML Rendering (Tumhara purana design hi rakha hai)
+  // HTML Rendering
   tbody.innerHTML = filtered.map((o) => {
     const productFormatted = o.products && o.products.length > 0
       ? o.products.map(p => `<strong>${p.quantity || 1} ×</strong> ${p.title}`).join('<br/>')
@@ -869,7 +798,11 @@ function filterOrders(statusFilter = null) {
 
     let actionHTML = '';
     if (o.orderStatus === 'Pending') {
-      actionHTML = `<button onclick="updateOrderStatus('${o._id}', 'Accepted')" class="btn-action btn-accept">Accept Order</button>`;
+      // Yahan Search function wale code mein Delete button lagaya gaya hai
+      actionHTML = `
+        <button onclick="updateOrderStatus('${o._id}', 'Accepted')" class="btn-action btn-accept" style="width: 100%; margin-bottom: 6px;">Accept Order</button>
+        <button onclick="deleteSingleOrder('${o._id}')" class="btn-action" style="background-color: #dc3545; color: white; width: 100%;">Delete Order</button>
+      `;
     } else if (o.orderStatus === 'Accepted') {
       actionHTML = `<button onclick="updateOrderStatus('${o._id}', 'Packed')" class="btn-action btn-pack">Mark Packed</button>`;
     } else if (o.orderStatus === 'Packed') {
@@ -1007,4 +940,33 @@ function toggleVariantPrices(checkbox) {
       input.value = ''; // Hide hone par value clear kar dena
     }
   });
+}
+// Function to Delete Pending Orders
+async function deleteSingleOrder(orderId) {
+  const confirmDelete = confirm('Warning: Kya aap sach mein is pending order ko delete karna chahte hain? Ye wapas nahi aayega.');
+  
+  if (!confirmDelete) return;
+
+  try {
+    const res = await fetch(`${CONFIG.BASE_URL}/orders/delete/${orderId}`, {
+      method: 'DELETE',
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}` // Security ke liye admin token pass kiya hai
+      }
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      alert('Order successfully delete ho gaya!');
+      // Delete hone ke baad table ko turant refresh karne ke liye
+      loadOrders(); 
+    } else {
+      alert('Order delete nahi hua: ' + (data.message || 'Unknown error'));
+    }
+  } catch (err) {
+    console.error('Delete Error:', err);
+    alert('Server error, please check console.');
+  }
 }
