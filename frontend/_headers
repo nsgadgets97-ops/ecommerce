@@ -1,0 +1,11 @@
+/*
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/css/*
+  Cache-Control: public, max-age=7200
+
+/js/*
+  Cache-Control: public, max-age=7200
+
+/assets/*
+  Cache-Control: public, max-age=1296000

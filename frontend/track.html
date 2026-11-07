@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders - NS Smart Gadgets</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <style>
+    .track-container { max-width: 650px; margin: 40px auto; padding: 0 16px; min-height: 65vh; }
+    .order-card-simple { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+    .order-card-simple:hover { border-color: #cbd5e1; box-shadow: 0 6px 15px rgba(0,0,0,0.06); transform: translateY(-2px); }
+    .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .back-link { color: #0f172a; text-decoration: none; font-weight: 700; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; cursor: pointer; }
+    .back-link:hover { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <!-- Navbar with Search, Home & Cart -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <a href="index.html">
+          <img src="assets/logo.png" alt="NS Smart Gadgets" class="nav-logo" onerror="this.style.display='none'" />
+          <span class="brand-name">NS Smart Gadgets</span>
+        </a>
+      </div>
+      <div class="nav-actions">
+        <!-- 1. Search Bar -->
+        <div class="search-wrap">
+          <button type="button" id="searchToggleBtn" class="icon-btn" aria-label="Search products">
+            <i class="fas fa-search"></i>
+          </button>
+          <div class="search-panel" id="searchPanel">
+            <input type="search" id="productSearchInput" placeholder="Search products..." autocomplete="off" />
+            <button type="button" id="searchClearBtn" class="search-clear" aria-label="Clear search">&times;</button>
+          </div>
+        </div>
+        
+        <!-- 2. Home Button -->
+        <button onclick="window.location.href='index.html'" class="btn-secondary">🏠 Home</button>
+        
+        <!-- 3. Cart Button -->
+        <button id="openCartBtn" class="cart-btn-wrap icon-btn" aria-label="Open cart">
+          <i class="fas fa-shopping-bag"></i>
+          <span class="cart-badge" id="cartCount">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="track-container">
+    <!-- 1. LOGIN VIEW -->
+    <div id="loginView" style="display: none; max-width: 400px; margin: 0 auto;">
+        <h2 style="margin-bottom: 20px; text-align: center; color: #0f172a;">Track Your Orders</h2>
+        <div style="background: #fff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+            <form id="trackLoginForm">
+                <div class="form-group"><label>Phone Number</label><input type="tel" id="trackPhone" required placeholder="10-digit registered number" /></div>
+                <div class="form-group"><label>Password</label><input type="password" id="trackPassword" required placeholder="Enter password" /></div>
+                <button type="submit" class="btn-primary" style="margin-top: 10px;">Login & View Orders</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. ORDER LIST VIEW (Clean Accordion Base) -->
+    <div id="listView" style="display: none;">
+        <h2 style="margin-bottom: 24px; color: #0f172a;">My Orders</h2>
+        <div id="ordersListContainer"></div>
+    </div>
+  </main>
+
+  <!-- Cart Drawer Component -->
+  <div class="modal-overlay cart-overlay" id="cartModal" style="display: none;">
+    <div class="cart-drawer">
+      <button class="close-modal-btn" id="closeCartModal">&times;</button>
+      <h3 class="modal-heading">Your Cart</h3>
+      <div id="cartItemsList" class="cart-drawer-items"></div>
+      <div class="cart-drawer-footer">
+        <div class="price-breakdown">
+          <div class="price-row" style="display: flex; justify-content: space-between; font-weight: 600;">
+            <span>Total Cart Value:</span>
+            <span id="cartTotalPrice">₹0</span>
+          </div>
+        </div>
+        <button onclick="window.location.href='index.html'" class="btn-primary">Checkout on Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/track.js"></script>
+</body>
+</html>

@@ -2,16 +2,20 @@ const jwt = require('jsonwebtoken');
 
 exports.verifyAdmin = (req, res, next) => {
   try {
-    const authHeader = req.header('Authorization');
-    if (!authHeader) return res.status(401).json({ success: false, message: 'Access Denied!' });
+    // 🔒 अब टोकन हेडर से नहीं, बल्कि Cookie-Parser की मदद से Secure Cookie से आएगा
+    const token = req.cookies.adminToken;
+    
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Access Denied! Kripya login karein.' });
+    }
 
-    const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
-
-    // JWT वेरीफाई करना
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_key_123');
-    req.admin = decoded; // डिकोडेड डेटा (जिसमें id है) req में डाल दिया
+    // हार्डकोडेड सीक्रेट हटा दिया गया है, सिर्फ .env इस्तेमाल होगा
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    req.admin = decoded; // डिकोडेड डेटा req में डाल दिया
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Invalid or Expired Token!' });
+    // अगर हैकर ने गलत टोकन भेजा या टोकन एक्सपायर हो गया
+    return res.status(401).json({ success: false, message: 'Invalid or Expired Token! Kripya wapas login karein.' });
   }
 };

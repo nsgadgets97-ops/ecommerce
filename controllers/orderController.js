@@ -2,6 +2,13 @@
 const Order = require('../models/Order');
 const Customer = require('../models/Customer');
 const bcrypt = require('bcryptjs');
+const sanitizeHtml = require('sanitize-html'); // 🔒 XSS Protection
+
+// 🔒 Safe Sanitize Function (Sirf text, no HTML)
+const cleanText = (text) => {
+  if (!text) return text;
+  return sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} });
+};
 
 // Auto-cleanup helper (Fire & Forget)
 async function cleanupOldOrders(phone) {
@@ -9,7 +16,6 @@ async function cleanupOldOrders(phone) {
     const twoMonthsAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
     const allOrders = await Order.find({ customerPhone: phone }).sort({ createdAt: -1 });
 
-    // Keep minimum 5 orders. Delete anything beyond 5th IF it's older than 60 days.
     if (allOrders.length > 5) {
       for (let i = 5; i < allOrders.length; i++) {
         if (allOrders[i].createdAt < twoMonthsAgo) {
@@ -26,28 +32,17 @@ async function cleanupOldOrders(phone) {
 exports.createOrder = async (req, res) => {
   try {
     const {
-      orderId,
-      customerPhone,
-      shippingDetails,
-      products,
-      paymentType,
-      amountToPayOnline,
-      remainingBalance,
-      password
+      orderId, customerPhone, shippingDetails, products,
+      paymentType, amountToPayOnline, remainingBalance, password
     } = req.body;
 
     if (!customerPhone || !shippingDetails || !products || !products.length) {
       return res.status(400).json({ success: false, message: 'All delivery details and products are required.' });
     }
 
-    const cleanPhone = customerPhone.trim();
-
-    // Check customer existence upfront taaki new vs existing ka validation handle ho sake
+    const cleanPhone = cleanText(customerPhone.trim());
     let existingCustomer = await Customer.findOne({ phone: cleanPhone });
 
-
-
-    // Rate Limiting: 5 minutes mein max 3 orders
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const recentOrdersCount = await Order.countDocuments({
       customerPhone: cleanPhone,
@@ -58,81 +53,93 @@ exports.createOrder = async (req, res) => {
       return res.status(429).json({ success: false, message: 'Too many orders recently. Please wait 5 minutes.' });
     }
 
-    // New Order create karein aapke schema fields ke anusar
-    const newOrder = new Order({
-      orderId: orderId || ('ORD-' + Date.now()),
+    // 🔒 Sanitize Shipping Details
+    const safeShippingDetails = {
+      name: cleanText(shippingDetails.name),
+      phone: cleanText(shippingDetails.phone) || cleanPhone,
+      address: cleanText(shippingDetails.address),
+      city: cleanText(shippingDetails.city) || 'N/A',
+      state: cleanText(shippingDetails.state) || 'N/A',
+      pincode: cleanText(shippingDetails.pincode)
+    };
+
+    const existingPendingOrder = await Order.findOne({
       customerPhone: cleanPhone,
-      shippingDetails: {
-        name: shippingDetails.name,
-        phone: shippingDetails.phone || cleanPhone,
-        address: shippingDetails.address,
-        city: shippingDetails.city || 'N/A',
-        state: shippingDetails.state || 'N/A',
-        pincode: shippingDetails.pincode
-      },
+      orderStatus: 'Screenshot Pending'
+    });
+
+    if (existingPendingOrder) {
+      existingPendingOrder.products = products.map(item => ({
+        productId: cleanText(item.productId), // Sanitize Product ID
+        title: cleanText(item.title),         // Sanitize Product Title
+        price: Number(item.price),
+        quantity: Number(item.quantity || 1)
+      }));
+      existingPendingOrder.shippingDetails = safeShippingDetails;
+      existingPendingOrder.amountToPayOnline = Number(amountToPayOnline !== undefined ? amountToPayOnline : 300);
+      existingPendingOrder.paymentType = cleanText(paymentType) || 'FULL_PAID'; // Sanitize Payment Type
+      existingPendingOrder.remainingBalance = Number(remainingBalance !== undefined ? remainingBalance : 0);
+
+      await existingPendingOrder.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Order silently updated',
+        orderId: cleanText(existingPendingOrder.orderId) // Sanitize Order ID
+      });
+    }
+
+    const newOrder = new Order({
+      orderId: cleanText(orderId) || ('ORD-' + Date.now()), // Sanitize Order ID
+      customerPhone: cleanPhone,
+      shippingDetails: safeShippingDetails,
       products: products.map(item => ({
-        productId: item.productId,
-        title: item.title,
+        productId: cleanText(item.productId), // Sanitize Product ID
+        title: cleanText(item.title),         // Sanitize Product Title
         price: Number(item.price),
         quantity: Number(item.quantity || 1)
       })),
-      paymentType: paymentType || 'FULL_PAID',
+      paymentType: cleanText(paymentType) || 'FULL_PAID', // Sanitize Payment Type
       amountToPayOnline: Number(amountToPayOnline !== undefined ? amountToPayOnline : 300),
       remainingBalance: Number(remainingBalance !== undefined ? remainingBalance : 0),
-      orderStatus: 'Pending'
+      orderStatus: 'Screenshot Pending'
     });
 
     await newOrder.save();
 
-    // Cleanup background job
-    if (typeof cleanupOldOrders === 'function') {
-      cleanupOldOrders(cleanPhone);
-    }
+    if (typeof cleanupOldOrders === 'function') cleanupOldOrders(cleanPhone);
 
-    // Customer record create ya update karein
     if (!existingCustomer) {
-      const fallbackPassword = password || shippingDetails.name.split(' ')[0] || '123456';
+      const fallbackPassword = password ? cleanText(password) : (safeShippingDetails.name.split(' ')[0] || '123456'); // Sanitize Password
       const hashedPassword = await bcrypt.hash(fallbackPassword, 10);
 
       await Customer.create({
         phone: cleanPhone,
-        name: shippingDetails.name,
+        name: safeShippingDetails.name,
         password: hashedPassword,
         defaultAddress: {
-          address: shippingDetails.address,
-          city: shippingDetails.city,
-          state: shippingDetails.state,
-          pincode: shippingDetails.pincode
+          address: safeShippingDetails.address,
+          city: safeShippingDetails.city,
+          state: safeShippingDetails.state,
+          pincode: safeShippingDetails.pincode
         }
       });
     } else {
-      // Existing customer: Address update karein
-      existingCustomer.name = shippingDetails.name;
+      existingCustomer.name = safeShippingDetails.name;
       existingCustomer.defaultAddress = {
-        address: shippingDetails.address,
-        city: shippingDetails.city,
-        state: shippingDetails.state,
-        pincode: shippingDetails.pincode
+        address: safeShippingDetails.address,
+        city: safeShippingDetails.city,
+        state: safeShippingDetails.state,
+        pincode: safeShippingDetails.pincode
       };
-
-      // Password sirf tabhi update karein jab valid new password diya ho (dummy '********' ya blank na ho)
       if (password && password !== '********' && password.trim() !== '') {
-        existingCustomer.password = await bcrypt.hash(password.trim(), 10);
+        existingCustomer.password = await bcrypt.hash(cleanText(password.trim()), 10); // Sanitize Password
       }
-
-
-
       await existingCustomer.save();
     }
 
-    return res.status(201).json({
-      success: true,
-      message: 'Order placed successfully!',
-      orderId: newOrder.orderId
-    });
-
+    return res.status(201).json({ success: true, message: 'Order placed successfully!', orderId: newOrder.orderId });
   } catch (error) {
-    console.error("Order creation error:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -140,104 +147,94 @@ exports.createOrder = async (req, res) => {
 // 2. Check Exists
 exports.checkCustomerExists = async (req, res) => {
   try {
-    const customer = await Customer.findOne({ phone: req.params.phone.trim() });
+    const customer = await Customer.findOne({ phone: cleanText(req.params.phone.trim()) }); // Sanitize Phone
     res.status(200).json({ success: true, exists: Boolean(customer), name: customer ? customer.name : '' });
   } catch (err) { res.status(500).json({ success: false }); }
 };
 
-// 3. Verify Address for Autofill (Blocks if locked)
+// 3. Verify Address for Autofill
 exports.fetchSavedAddress = async (req, res) => {
   try {
     const { phone, password } = req.body;
-    const customer = await Customer.findOne({ phone: phone.trim() });
+    const cleanPhone = cleanText(phone.trim()); // Sanitize Phone
+    const customer = await Customer.findOne({ phone: cleanPhone });
     if (!customer) return res.status(404).json({ success: false, message: 'Account not found.' });
 
     if (customer.lockUntil && customer.lockUntil > Date.now()) {
-      return res.status(403).json({ success: false, message: 'Your account is locked for 4 hours due to multiple failed reset attempts. New orders can still be placed.' });
+      return res.status(403).json({ success: false, message: 'Account locked.' });
     }
 
-    const isMatch = await bcrypt.compare(password, customer.password);
+    const isMatch = await bcrypt.compare(cleanText(password), customer.password); // Sanitize Password
     if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect password.' });
 
     res.status(200).json({ success: true, data: { name: customer.name, address: customer.defaultAddress } });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// 4. Customer Login (Blocks if locked)
+// 4. Customer Login
 exports.customerLoginAndOrders = async (req, res) => {
   try {
     const { phone, password } = req.body;
-    console.log("👉 [DEBUG] Login attempt for phone:", phone);
-    const customer = await Customer.findOne({ phone: phone.trim() });
+    const cleanPhone = cleanText(phone.trim()); // Sanitize Phone
+    const customer = await Customer.findOne({ phone: cleanPhone });
     if (!customer) return res.status(404).json({ success: false, message: 'Account not found.' });
 
     if (customer.lockUntil && customer.lockUntil > Date.now()) {
-      return res.status(403).json({ success: false, message: 'Account locked for 4 hours due to security reasons. New orders can still be placed.' });
+      return res.status(403).json({ success: false, message: 'Account locked.' });
     }
 
-    const isMatch = await bcrypt.compare(password, customer.password);
+    const isMatch = await bcrypt.compare(cleanText(password), customer.password); // Sanitize Password
     if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect password.' });
 
-    // Login successful, reset failed attempts just in case
     if (customer.failedAttempts > 0) {
       customer.failedAttempts = 0;
       await customer.save();
     }
-    console.log("👉 [DEBUG] Customer found! Searching orders for customerPhone:", phone.trim()); // LOG 2
-
-    const orders = await Order.find({ customerPhone: phone.trim() }).sort({ createdAt: -1 }).limit(10);
-    console.log("👉 [DEBUG] Orders found from DB:", orders.length); // LOG 3
-    console.log(orders); // Yeh pura order array terminal mein print karega
+    const orders = await Order.find({ customerPhone: cleanPhone }).sort({ createdAt: -1 }).limit(10);
     res.status(200).json({ success: true, orders });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// 5. Forgot Password Logic (3 Strikes = 4 Hour Lock)
+// 5. Forgot Password Logic
 exports.forgotPassword = async (req, res) => {
   try {
     const { phone, pincode, newPassword } = req.body;
-    const customer = await Customer.findOne({ phone: phone.trim() });
+    const cleanPhone = cleanText(phone.trim()); // Sanitize Phone
+    const cleanPincode = cleanText(pincode.trim()); // Sanitize Pincode
+    const customer = await Customer.findOne({ phone: cleanPhone });
 
     if (!customer) return res.status(404).json({ success: false, message: 'Account not found.' });
 
-    // Check if currently locked
     if (customer.lockUntil && customer.lockUntil > Date.now()) {
-      return res.status(403).json({ success: false, message: 'Account is locked for 4 hours. Try again later.' });
+      return res.status(403).json({ success: false, message: 'Account locked.' });
     }
 
-
-    if (customer.defaultAddress.pincode === pincode.trim()) {
-      // Success! Reset password and clear strikes
-      customer.password = await bcrypt.hash(newPassword, 10);
+    if (customer.defaultAddress.pincode === cleanPincode) {
+      customer.password = await bcrypt.hash(cleanText(newPassword), 10); // Sanitize Password
       customer.failedAttempts = 0;
       customer.lockUntil = null;
       await customer.save();
       return res.status(200).json({ success: true, message: 'Password reset successfully!' });
     } else {
-      // Failed attempt
       customer.failedAttempts = (customer.failedAttempts || 0) + 1;
-      let remaining = 3 - customer.failedAttempts;
-
       if (customer.failedAttempts >= 3) {
-        customer.lockUntil = new Date(Date.now() + 4 * 60 * 60 * 1000); // Lock for 4 hours
-        customer.failedAttempts = 0; // Reset counter for next time
+        customer.lockUntil = new Date(Date.now() + 4 * 60 * 60 * 1000);
+        customer.failedAttempts = 0;
         await customer.save();
-        return res.status(403).json({ success: false, message: '3 failed attempts. Account locked for 4 hours for security.' });
+        return res.status(403).json({ success: false, message: 'Account locked for 4 hours.' });
       } else {
         await customer.save();
-        return res.status(400).json({ success: false, message: `Incorrect details. ${remaining} attempts left before account lock.` });
+        return res.status(400).json({ success: false, message: 'Incorrect details.' });
       }
     }
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// 6. Get Customer Orders (THIS WAS MISSING!)
+// 6. Get Customer Orders
 exports.getCustomerOrders = async (req, res) => {
   try {
-    const { phone } = req.params;
-    const orders = await Order.find({ customerPhone: phone.trim() })
-      .sort({ createdAt: -1 })
-      .limit(10);
+    const cleanPhone = cleanText(req.params.phone.trim()); // Sanitize Phone
+    const orders = await Order.find({ customerPhone: cleanPhone }).sort({ createdAt: -1 }).limit(10);
     res.status(200).json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -245,35 +242,6 @@ exports.getCustomerOrders = async (req, res) => {
 };
 
 // Admin Routes
-// ... existing code ...
-
-// Admin Routes - Status & Tracking Update
-exports.updateOrderStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    // req.body se sabhi naye fields lein
-    const { orderStatus, trackingId, courierName } = req.body;
-
-    const updateData = {};
-    if (orderStatus) updateData.orderStatus = orderStatus;
-    // trackingId update, khali bhi ho sakti hai (jaise pack karte samay)
-    if (trackingId !== undefined) updateData.trackingId = trackingId;
-    if (courierName !== undefined) updateData.courierName = courierName;
-
-    const updatedOrder = await Order.findByIdAndUpdate(id, updateData, { new: true });
-
-    if (!updatedOrder) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
-
-    res.status(200).json({ success: true, order: updatedOrder });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ... existing code ...
-
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find({}).sort({ createdAt: -1 });
@@ -281,22 +249,92 @@ exports.getAllOrders = async (req, res) => {
   } catch (error) { res.status(500).json({ success: false }); }
 };
 
-// ... (Aapka upar ka saara code jaise createOrder, updateOrderStatus, getAllOrders waisa hi rahega) ...
-
-// Admin Routes - Delete Order (NAYA FUNCTION)
-exports.deleteOrder = async (req, res) => {
+// Admin Routes - Status & Payment Update COMBINED
+exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    const { orderStatus, trackingId, courierName, paymentType, amountToPayOnline } = req.body;
 
-    const deletedOrder = await Order.findByIdAndDelete(id);
-
-    if (!deletedOrder) {
+    const order = await Order.findById(id);
+    if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    // Status Updates
+    if (orderStatus) order.orderStatus = cleanText(orderStatus); // Sanitize Order Status
+    if (trackingId !== undefined) order.trackingId = cleanText(trackingId); // Sanitize Tracking ID
+    if (courierName !== undefined) order.courierName = cleanText(courierName); // Sanitize Courier Name
+
+    // Payment Updates
+    if (paymentType) order.paymentType = cleanText(paymentType); // Sanitize Payment Type
+    if (amountToPayOnline !== undefined) order.amountToPayOnline = Number(amountToPayOnline);
+
+    // Dynamic Balance Calculation
+    if (paymentType || amountToPayOnline !== undefined) {
+      if (order.paymentType === 'FULL_PAID') {
+        order.remainingBalance = 0;
+      } else {
+        let totalOrderValue = 0;
+        if (order.products && order.products.length > 0) {
+          order.products.forEach(p => {
+            totalOrderValue += (p.price * p.quantity);
+          });
+        }
+        order.remainingBalance = totalOrderValue - (order.amountToPayOnline || 0);
+        if (order.remainingBalance < 0) order.remainingBalance = 0;
+      }
+    }
+
+    const updatedOrder = await order.save();
+    res.status(200).json({ success: true, order: updatedOrder });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete Order
+exports.deleteOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedOrder = await Order.findByIdAndDelete(id);
+    if (!deletedOrder) return res.status(404).json({ success: false, message: 'Order not found' });
     res.status(200).json({ success: true, message: 'Order successfully deleted' });
   } catch (error) {
-    console.error("Delete Order Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 7. Confirm Screenshot & Instant Cleanup
+exports.confirmScreenshot = async (req, res) => {
+  try {
+    const { orderId, customerPhone } = req.body; 
+    const cleanOrderId = cleanText(orderId); // Sanitize Order ID
+    const cleanCustomerPhone = cleanText(customerPhone); // Sanitize Customer Phone
+
+    const updatedOrder = await Order.findOneAndUpdate(
+      { orderId: cleanOrderId }, 
+      { orderStatus: 'Pending',
+        createdAt: new Date()
+       }, 
+      { returnDocument: 'after' }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    await Order.deleteMany({
+      customerPhone: cleanCustomerPhone.trim(),
+      orderStatus: 'Screenshot Pending',
+      orderId: { $ne: cleanOrderId } 
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Order confirmed and duplicates cleaned up instantly"
+    });
+
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

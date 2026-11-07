@@ -21,6 +21,9 @@ const settingSchema = new mongoose.Schema(
     announcement1: { type: String, default: 'COD Available' },
     announcement2: { type: String, default: 'Free AirPods on orders above ₹1000' },
     announcement3: { type: String, default: '' },
+    pendingOrderExpiryHours: { type: Number, default: 48 }, // कितने घंटे
+    howToOrderTitle: { type: String, default: 'How to Order' },
+    howToOrderVideoUrl: { type: String, default: '' },
     // Audit Field
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,

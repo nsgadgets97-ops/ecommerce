@@ -43,7 +43,7 @@ const orderSchema = new mongoose.Schema(
     },
     orderStatus: {
       type: String,
-      enum: ['Pending', 'Accepted', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'],
+      enum: ['Screenshot Pending','Pending', 'Accepted', 'Packed', 'Dispatched', 'Delivered','RTO', 'Cancelled'],
       default: 'Pending',
     },
     trackingId: {

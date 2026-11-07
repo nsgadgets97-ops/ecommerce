@@ -1,11 +1,13 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const productId = urlParams.get('id');
-
+     // 👇 यह लाइन मिसिंग थी! 
+    const container = document.getElementById('productContainer');
     if (!productId) {
         document.getElementById('productContainer').innerHTML = '<h2>Product Not Found</h2>';
         return;
     }
+    
 
     try {
         const res = await fetch(`${CONFIG.BASE_URL}/products/${productId}`);

@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
     </div>`;
-    
+
     const div = document.createElement('div');
     div.innerHTML = checkoutHTML;
     document.body.appendChild(div);
@@ -69,10 +69,18 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupCheckoutListeners() {
-    document.getElementById('closeCheckoutModal')?.addEventListener('click', () => { document.getElementById('checkoutModal').style.display = 'none'; });
+    document.getElementById('closeCheckoutModal')?.addEventListener('click', () => { 
+        document.getElementById('checkoutModal').style.display = 'none'; 
+        
+        // WhatsApp floating widget ko wapas show karein
+        const floatingWa = document.getElementById('floatingWaBtn'); 
+        if (floatingWa) {
+            floatingWa.style.display = 'flex'; // Kyunki aapke HTML mein ye flex use karta hai
+        }
+    });
     document.querySelectorAll('input[name="paymentPlan"]').forEach((radio) => { radio.addEventListener('change', (e) => { currentPaymentPlan = e.target.value; updatePriceCalculations(); }); });
     document.getElementById('quickCheckoutForm')?.addEventListener('submit', async (e) => { e.preventDefault(); await handleOrderSubmit(); });
-    
+
     // Auto password fill logic
     const nameInput = document.getElementById('custName');
     const passwordInput = document.getElementById('custPassword');
@@ -129,7 +137,7 @@ function setupCheckoutListeners() {
 }
 
 // Global checkout triggers
-window.buyNowSingle = function(productId) {
+window.buyNowSingle = function (productId) {
     const p = allProducts.find((item) => item._id === productId);
     if (!p) return;
     const advance = (p.advancePayment !== undefined && p.advancePayment !== null && p.advancePayment !== "") ? p.advancePayment : CONFIG.globalAdvancePayment;
@@ -137,7 +145,7 @@ window.buyNowSingle = function(productId) {
     openCheckoutModal();
 };
 
-window.buyNowWithVariant = function(productId, title, basePrice, image, advancePayment) {
+window.buyNowWithVariant = function (productId, title, basePrice, image, advancePayment) {
     let selectedVariants = [];
     const activeBtns = document.querySelectorAll('.variant-btn.active');
     activeBtns.forEach(btn => { selectedVariants.push(`${btn.getAttribute('data-group')}: ${btn.getAttribute('data-val')}`); });
@@ -150,17 +158,16 @@ window.buyNowWithVariant = function(productId, title, basePrice, image, advanceP
     openCheckoutModal();
 };
 
-window.checkoutFromCart = function() {
+window.checkoutFromCart = function () {
     if (cart.length === 0) { alert('Your cart is empty!'); return; }
     checkoutItems = [...cart];
-    
-    // अब सीधे कार्ट से एडवांस ले रहे हैं
+
     checkoutItems.forEach(item => {
         if (item.advance === undefined || item.advance === null) {
             item.advance = CONFIG.globalAdvancePayment;
         }
     });
-    
+
     const cartModal = document.getElementById('cartModal');
     if (cartModal) cartModal.style.display = 'none';
     openCheckoutModal();
@@ -173,7 +180,8 @@ function openCheckoutModal() {
 
     const summaryBox = document.getElementById('checkoutItemsSummary');
     if (summaryBox) {
-        summaryBox.innerHTML = checkoutItems.map(item => `<div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-bottom:6px;"><div><span>${item.title} <strong>(x${item.quantity})</strong></span></div><strong>₹${item.price * item.quantity}</strong></div>`).join('');
+        summaryBox.innerHTML = checkoutItems.map(item => `<div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-bottom:6px;"><div><span>${item.title} <strong>(x${item.quantity})</strong></span></div>
+            <strong style="white-space: nowrap; flex-shrink: 0; margin-left: 10px;">₹${item.price * item.quantity}</strong></div>`).join('');
     }
     updatePriceCalculations();
 
@@ -191,17 +199,22 @@ function openCheckoutModal() {
         }, 50);
     }
     document.getElementById('checkoutModal').style.display = 'flex';
+    
+    // WhatsApp floating widget ko hide karein
+    const floatingWa = document.getElementById('floatingWaBtn'); 
+    if (floatingWa) {
+        floatingWa.style.display = 'none';
+    }
 }
 
 function updatePriceCalculations() {
     const totalCartPrice = checkoutItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    
-    // Yaha Advance Payment ka issue fix hua hai (Product specific vs Global)
+
     const maxAdvance = checkoutItems.reduce((max, item) => {
         const itemAdv = (item.advance !== undefined && item.advance !== null && item.advance !== "") ? item.advance : (CONFIG.globalAdvancePayment || 300);
         return Math.max(max, Number(itemAdv));
     }, 0);
-    
+
     const advanceAmount = maxAdvance;
     const payNow = currentPaymentPlan === 'FULL_PAID' ? totalCartPrice : Math.min(advanceAmount, totalCartPrice);
     const codRemaining = currentPaymentPlan === 'FULL_PAID' ? 0 : Math.max(0, totalCartPrice - payNow);
@@ -222,7 +235,7 @@ function updatePriceCalculations() {
     }
 
     if (submitBtn) {
-        if (currentPaymentPlan === 'FULL_PAID') { submitBtn.textContent = totalCartPrice >= 1000 ? `Pay Full ${CONFIG.CURRENCY}${payNow} (Free AirPods)` : `Pay Full ${CONFIG.CURRENCY}${payNow}`; } 
+        if (currentPaymentPlan === 'FULL_PAID') { submitBtn.textContent = totalCartPrice >= 1000 ? `Pay Full ${CONFIG.CURRENCY}${payNow} (Free AirPods)` : `Pay Full ${CONFIG.CURRENCY}${payNow}`; }
         else { submitBtn.textContent = `Pay Advance ${CONFIG.CURRENCY}${payNow}`; }
     }
 }
@@ -238,10 +251,21 @@ async function handleOrderSubmit() {
 
     const totalCartPrice = checkoutItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const advanceAmount = checkoutItems.reduce((max, item) => Math.max(max, Number((item.advance !== undefined && item.advance !== null && item.advance !== "") ? item.advance : (CONFIG.globalAdvancePayment || 300))), 0);
-    
+
     const payNow = currentPaymentPlan === 'FULL_PAID' ? totalCartPrice : Math.min(advanceAmount, totalCartPrice);
     const remaining = currentPaymentPlan === 'FULL_PAID' ? 0 : Math.max(0, totalCartPrice - payNow);
     const orderId = 'ORD-' + Date.now();
+
+    // --- BUTTON DISABLE & SPINNER LOGIC ---
+    const submitBtn = document.getElementById('submitOrderBtn');
+    const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Proceed to Pay';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Processing... <i class="fas fa-spinner fa-spin"></i>';
+        submitBtn.style.opacity = '0.7';
+        submitBtn.style.cursor = 'not-allowed';
+    }
+    // --------------------------------------
 
     try {
         const orderPayload = {
@@ -250,7 +274,7 @@ async function handleOrderSubmit() {
             products: checkoutItems.map((item) => ({ productId: item.productId, title: item.title, price: Number(item.price), quantity: Number(item.quantity) })),
             paymentType: currentPaymentPlan, amountToPayOnline: Number(payNow), remainingBalance: Number(remaining), password: password
         };
-        
+
         const res = await fetch(`${CONFIG.BASE_URL}/orders/create`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderPayload) });
         const result = await res.json();
 
@@ -261,46 +285,205 @@ async function handleOrderSubmit() {
 
             const updatedUser = { phone, name, address, city, state, pincode, password };
             localStorage.setItem('storeUser', JSON.stringify(updatedUser));
-            
+
+            // ❌ यहाँ बटन वापस इनेबल मत करना (ताकि डबल क्लिक न हो)
             showPaymentSuccessModal(result.orderId || orderId, payNow, phone, name, (currentPaymentPlan === 'FULL_PAID' && totalCartPrice >= 1000));
-        } else { alert(result.message || 'Order creation failed.'); }
-    } catch (err) { alert('Server error! Please check backend console.'); }
+        } else {
+            // ✔️ फेल होने पर बटन वापस चालू करें
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+            }
+            alert(result.message || 'Order creation failed.');
+        }
+    } catch (err) {
+        // ✔️ एरर आने पर बटन वापस चालू करें
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        }
+        alert('Server error! Please check backend console.');
+    }
 }
 
 function showPaymentSuccessModal(orderId, payAmount, phone, name, isFreeGift) {
     const modalContent = document.getElementById('checkoutModalBody');
     let cleanPhone = CONFIG.adminWhatsapp ? String(CONFIG.adminWhatsapp).replace(/\D/g, '') : '';
     if (cleanPhone.length === 10) { cleanPhone = '91' + cleanPhone; }
-    
+
     const giftText = isFreeGift ? ' (🎁 Full Paid + Free AirPods Offer)' : ' (Partial Advance)';
     const message = encodeURIComponent(`Hello! I have placed an order${giftText}.\nOrder ID: ${orderId}\nName: ${name}\nPhone: ${phone}\nAmount to Pay: ₹${payAmount}\nSharing payment screenshot.`);
     const waUrl = `https://wa.me/${cleanPhone}?text=${message}`;
 
+    // --- UPI Parameters & QR URL ---
+    const merchantName = "NS Smart Gadgets";
+    const baseUpiParams = `pa=${CONFIG.adminUpiId || ''}&pn=${encodeURIComponent(merchantName)}&am=${payAmount}&cu=INR`;
+
+    const genericUpiUri = `upi://pay?${baseUpiParams}`;
+    const phonepeUri = `phonepe://pay?${baseUpiParams}`;
+    const paytmUri = `paytmmp://pay?${baseUpiParams}`;
+    const gpayUri = `gpay://upi/pay?${baseUpiParams}`;
+
+    const dynamicQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(genericUpiUri)}`;
+
+    // --- OS Detection Logic ---
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+    const isAndroid = /android/i.test(userAgent);
+
+    let mobileButtonsHtml = '';
+
+    if (isAndroid) {
+        // NAYA: onclick="trackUpiClick()" add kiya gaya hai
+        mobileButtonsHtml = `
+            <a href="${genericUpiUri}" onclick="trackUpiClick()"
+               style="display: block; background: #0284c7; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 15px 0;">
+               📱 Pay via UPI App (GPay/PhonePe)
+            </a>
+        `;
+    } else if (isIOS) {
+        // NAYA: onclick="trackUpiClick()" sabhi buttons mein add kiya gaya hai
+        mobileButtonsHtml = `
+            <div style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
+                <a href="${phonepeUri}" onclick="trackUpiClick()" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #5f259f; color: white; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/7/71/PhonePe_Logo.svg" style="height: 22px; filter: brightness(0) invert(1);" alt="PhonePe">
+                    Pay via PhonePe
+                </a>
+                
+                <a href="${paytmUri}" onclick="trackUpiClick()" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #002970; color: white; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/2/24/Paytm_Logo_%28standalone%29.svg" style="height: 14px; filter: brightness(0) invert(1);" alt="Paytm">
+                    Pay via Paytm
+                </a>
+                
+                <a href="${gpayUri}" onclick="trackUpiClick()" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #ffffff; color: #3c4043; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; border: 1px solid #dadce0; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" style="height: 18px;" alt="GPay">
+                    Pay via GPay
+                </a>
+            </div>
+        `;
+    }
+
     modalContent.innerHTML = `
     <div style="text-align: center;">
-      <h3 style="color: #059669; margin-bottom: 6px;">Order Placed!</h3>
+      <h3 style="color: #059669; margin-bottom: 6px;">🎉 Order Placed!</h3>
       <p style="font-size: 0.85rem; color: #64748b;">Order ID: <strong>${orderId}</strong></p>
       ${isFreeGift ? '<div style="background:#ecfdf5; color:#047857; padding:6px; border-radius:6px; font-weight:600; font-size:0.85rem; margin:10px 0;">🎉 Free AirPods unlocked!</div>' : ''}
+      
       <div style="margin: 14px 0; background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px; border-radius: 8px;">
-        <p style="font-weight: 700; font-size: 0.95rem;">Scan & Pay: <span style="color:#059669;">₹${payAmount}</span></p>
-        <div style="margin: 10px 0;"><img src="${CONFIG.adminQrCodeUrl || 'https://placehold.co/180x180?text=Scan+QR'}" alt="UPI QR" style="width: 170px; height: 170px; border-radius: 6px; object-fit: contain;" /></div>
+        <p style="font-weight: 700; font-size: 0.95rem;">Amount to Pay: <span style="color:#059669;">₹${payAmount}</span></p>
+        
+        ${mobileButtonsHtml}
+        
+        <p style="font-size: 0.85rem; margin: 10px 0;">${(isAndroid || isIOS) ? 'OR ' : ''}Scan QR Code to Pay</p>
+        
+        
+        <!-- NAYA QR LOGIC: Blurred Dummy QR with Overlay -->
+        <div id="qrContainer" style="position: relative; margin: 15px auto; width: 180px; height: 180px; cursor: pointer;" onclick="generateAndShowQr('${dynamicQrUrl}')">
+           
+           <!-- Dummy Blurred QR ( असली जनरेट नहीं होगा जब तक क्लिक न हो ) -->
+           <img id="dynamicQrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=TapToPay" alt="Scan to Pay" style="width: 100%; height: 100%; border-radius: 8px; object-fit: contain; border: 2px solid #cbd5e1; padding: 12px; background: #fff; filter: blur(6px); transition: filter 0.3s ease;" />
+           
+           <!-- Text Overlay (👆 Tap to View QR) -->
+           <div id="qrOverlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.3); border-radius: 8px; font-weight: 700; color: #0f172a; font-size: 0.95rem; text-shadow: 0 0 4px #fff;">
+              👆 Tap to View QR
+           </div>
+        </div>
         ${CONFIG.adminUpiId ? `<p style="font-size: 0.85rem;">UPI ID: <strong>${CONFIG.adminUpiId}</strong></p>` : ''}
       </div>
-      <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 12px;">Please send payment screenshot on WhatsApp to confirm order:</p>
-      
-      <!-- YAHAN BUTTON CHANGE KIYA HAI -->
-      <button onclick="processWhatsAppRedirect('${waUrl}')" class="btn-primary" style="display:block; width: 100%; border: none; cursor: pointer; text-decoration:none; background:#25D366; text-align:center; color:#fff; padding:10px; border-radius:6px; font-weight:600;">💬 Send Screenshot on WhatsApp</button>
+
+      <!-- NAYA BUTTON LOGIC: By default hidden rahega -->
+      <div id="postPaymentSection" style="display: none;">
+          <p style="font-size: 0.8rem; color: #d97706; font-weight: bold; margin-bottom: 12px;">Step 2: Please send payment screenshot to confirm order:</p>
+          <button onclick="processWhatsAppRedirect(this,'${waUrl}', '${orderId}', '${phone}')" class="btn-primary" style="display:block; width: 100%; border: none; cursor: pointer; text-decoration:none; background:#25D366; text-align:center; color:#fff; padding:10px; border-radius:6px; font-weight:600;">
+  💬 I Have Paid (Send Screenshot)
+</button>
+      </div>
     </div>`;
 }
 
-// YAHAN SE NAYA FUNCTION SHURU HOTA HAI (Ise file ke sabse end mein daal do)
-window.processWhatsAppRedirect = function(waUrl) {
-    // 1. WhatsApp naye tab mein open karo
-    window.open(waUrl, '_blank');
+// --- GLOBAL HELPER FUNCTIONS ---
+window.revealPostPaymentUI = function () {
+    const postPaymentDiv = document.getElementById('postPaymentSection');
+    if (postPaymentDiv) postPaymentDiv.style.display = 'block';
+};
+
+
+
+window.processWhatsAppRedirect = async function (btn, waUrl, orderId, customerPhone) {
+    const originalText = btn.innerHTML;
     
-    // 2. Extra safety ke liye cart poori tarah saaf kar do
-    localStorage.removeItem('user_cart');
+    // Button ko disable karo taaki double click na ho
+    btn.innerHTML = 'Processing... <i class="fas fa-spinner fa-spin"></i>';
+    btn.style.pointerEvents = 'none';
+
+    try {
+        // 1. Backend ko hit karke duplicate udayenge aur status Pending karenge
+        const res = await fetch(`${CONFIG.BASE_URL}/orders/confirm-screenshot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, customerPhone })
+        });
+
+        const data = await res.json();
+        
+        if (data.success) {
+            // 2. Database update hone ke baad hi WhatsApp kholenge
+            window.open(waUrl, '_blank');
+            localStorage.removeItem('user_cart');
+            window.location.href = 'success.html';
+        } else {
+            alert("Error: " + data.message);
+            btn.innerHTML = originalText;
+            btn.style.pointerEvents = 'auto';
+        }
+    } catch (err) {
+        alert("Network Error! Please try again.");
+        btn.innerHTML = originalText;
+        btn.style.pointerEvents = 'auto';
+    }
+};
+// --- NAYA LOGIC: Visibility Tracker ---
+window.upiAppClicked = false; // Track karne ke liye ki button click hua ya nahi
+
+// Jab browser background se wapas foreground (samne) aaye
+document.addEventListener("visibilitychange", () => {
+    // Agar page wapas samne aa gaya hai AUR usne pehle UPI button click kiya tha
+    if (document.visibilityState === "visible" && window.upiAppClicked) {
+        window.revealPostPaymentUI();
+        window.upiAppClicked = false; // Reset kar dein
+    }
+});
+
+// Naya function jo sirf click track karega, button show nahi karega
+window.trackUpiClick = function() {
+    window.upiAppClicked = true;
+};
+
+
+
+window.generateAndShowQr = function (qrUrl) {
+    const qrImage = document.getElementById('dynamicQrImage');
+    const overlay = document.getElementById('qrOverlay');
     
-    // 3. Current page ko naye success.html par bhej do
-    window.location.href = 'success.html';
+    if (qrImage) {
+        // 1. ब्लर हटाओ
+        qrImage.style.filter = 'none';
+        // 2. अब जाकर असली डायनामिक QR लोड करो
+        qrImage.src = qrUrl; 
+        
+        // 3. दोबारा क्लिक होने से रोको
+        qrImage.parentElement.style.cursor = 'default';
+        qrImage.parentElement.onclick = null;
+    }
+    
+    if (overlay) {
+        // 4. 'Tap to View' वाला टेक्स्ट गायब कर दो
+        overlay.style.display = 'none'; 
+    }
+    
+    revealPostPaymentUI(); 
 };

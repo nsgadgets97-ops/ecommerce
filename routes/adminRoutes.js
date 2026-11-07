@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); // JWT इम्पोर्ट किया
+const jwt = require('jsonwebtoken'); 
 const Admin = require('../models/Admin');
 
 router.post('/login', async (req, res) => {
@@ -13,22 +13,45 @@ router.post('/login', async (req, res) => {
     }
 
     const admin = await Admin.findOne({ username: username.trim() });
-    
     if (!admin) return res.status(401).json({ success: false, message: 'Invalid Credentials' });
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid Credentials' });
 
-    // सुरक्षित JWT टोकन बनाना (1 दिन की वैलिडिटी के साथ)
+    if (!process.env.JWT_SECRET) {
+      console.error("CRITICAL ERROR: .env file mein JWT_SECRET nahi hai!");
+      return res.status(500).json({ success: false, message: 'Server Security Configuration Error' });
+    }
+
     const token = jwt.sign(
       { id: admin._id, role: admin.role }, 
-      process.env.JWT_SECRET || 'super_secret_key_123', 
+      process.env.JWT_SECRET, 
       { expiresIn: '1d' }
     );
 
-    res.json({ success: true, message: 'Login successful', token, admin: { username: admin.username, role: admin.role } });
+    // 🔒 FIX: sameSite ko 'Strict' se hata kar 'Lax' kar diya gaya hai
+    // Taaki localhost aur 127.0.0.1 ke beech cookie block na ho
+    res.cookie('adminToken', token, {
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production', 
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', 
+      maxAge: 24 * 60 * 60 * 1000 
+    });
+
+    res.json({ success: true, message: 'Login successful', admin: { username: admin.username, role: admin.role } });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server login error' });
   }
 });
+
+router.post('/logout', (req, res) => {
+  // 🔒 FIX: Yahan bhi sameSite update kiya hai
+  res.clearCookie('adminToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax'
+  });
+  res.json({ success: true, message: 'Logout successful' });
+});
+
 module.exports = router;

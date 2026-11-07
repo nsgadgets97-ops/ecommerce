@@ -1,4 +1,5 @@
-const adminToken = localStorage.getItem('storeAdminToken');
+//const adminToken = localStorage.getItem('storeAdminToken');
+let adminToken = localStorage.getItem('isLoggedIn') === 'true' ? true : null;
 
 document.addEventListener('DOMContentLoaded', () => {
   if (!adminToken) {
@@ -98,7 +99,8 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
     const res = await fetch(`${CONFIG.BASE_URL}/admin-settings/change-password`, {
 
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ oldPassword, newPassword })
     });
     const data = await res.json();
@@ -129,7 +131,8 @@ document.getElementById('createAdminForm').addEventListener('submit', async (e) 
     const res = await fetch(`${CONFIG.BASE_URL}/admin-settings/create-user`, {
 
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     const data = await res.json();
@@ -148,7 +151,7 @@ async function loadCustomers() {
   const tbody = document.getElementById('customersTableBody');
   try {
     const res = await fetch(`${CONFIG.BASE_URL}/admin-settings/customers`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
+      credentials: 'include'
     });
     const data = await res.json();
     

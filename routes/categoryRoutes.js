@@ -1,16 +1,18 @@
-// routes/categoryRoutes.js
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const Category = require('../models/Category');
 const { uploadToGitHub } = require('../utils/githubUpload');
 
+// 🔒 Auth Middleware Import Karein
+const { verifyAdmin } = require('../middlewares/authMiddleware');
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 } 
 });
 
-// GET all categories
+// ✅ Public Route (Grahak ko categories dikhane ke liye)
 router.get('/', async (req, res) => {
   try {
     const categories = await Category.find().sort({ createdAt: -1 });
@@ -20,8 +22,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST create category
-router.post('/', upload.single('categoryImage'), async (req, res) => {
+// 🔒 Protected Admin Routes (Sirf Admin hi categories chhed sakta hai)
+router.post('/', verifyAdmin, upload.single('categoryImage'), async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Category Name zaroori hai' });
@@ -37,8 +39,7 @@ router.post('/', upload.single('categoryImage'), async (req, res) => {
   }
 });
 
-// PUT update category (Naya Logic)
-router.put('/:id', upload.single('categoryImage'), async (req, res) => {
+router.put('/:id', verifyAdmin, upload.single('categoryImage'), async (req, res) => {
   try {
     const { name } = req.body;
     let updateData = {};
@@ -56,8 +57,7 @@ router.put('/:id', upload.single('categoryImage'), async (req, res) => {
   }
 });
 
-// DELETE category (Naya Logic)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', verifyAdmin, async (req, res) => {
   try {
     await Category.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Category deleted' });

@@ -4,83 +4,115 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Product Details</title>
+  <title>NS Smart Gadgets | Product</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-  <style>
-    .product-page-container { max-width: 1100px; margin: 20px auto; padding: 20px; display: flex; flex-wrap: wrap; gap: 30px; background: #fff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
-    .product-gallery { flex: 1; min-width: 300px; }
-    .main-image { width: 100%; height: 400px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px; background: #f8fafc; }
-    .thumb-row { display: flex; gap: 10px; }
-    .thumb-img { width: 70px; height: 70px; object-fit: cover; border: 2px solid transparent; border-radius: 6px; cursor: pointer; }
-    .thumb-img.active { border-color: #059669; }
-    .product-info { flex: 1; min-width: 300px; display: flex; flex-direction: column; }
-    .prod-title { font-size: 1.8rem; font-weight: 700; margin-bottom: 10px; color: #0f172a; }
-    .prod-category { font-size: 0.9rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
-    .variant-group { margin-bottom: 15px; }
-    .variant-label { font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; display: block; color: #334155; }
-    .variant-options { display: flex; flex-wrap: wrap; gap: 10px; }
-    .variant-btn { background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: #475569; transition: all 0.2s ease-in-out; }
-    .variant-btn:hover { border-color: #94a3b8; }
-    .variant-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; font-weight: 600; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
-    .prod-price-box { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; }
-    .prod-sell-price { font-size: 2rem; font-weight: 800; color: #059669; }
-    .prod-mrp { font-size: 1.2rem; color: #94a3b8; text-decoration: line-through; margin-left: 10px; }
-    .adv-badge { display: inline-block; margin-top: 10px; background: #fef3c7; color: #b45309; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; }
-    .action-buttons { display: flex; gap: 15px; margin-top: 30px; }
-    .btn-large { flex: 1; padding: 16px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; text-align: center; }
-    .whatsapp-float { position: fixed; bottom: 90px; right: 20px; background-color: #fff; border: 2px solid #25d366; border-radius: 30px; display: flex; align-items: center; gap: 8px; padding: 8px 16px; text-decoration: none; z-index: 1000; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); width: max-content; }
-    #productDescriptionDisplay ul, #productDescriptionDisplay ol { padding-left: 24px; margin-bottom: 12px; }
-    #productDescriptionDisplay li { margin-bottom: 6px; }
-    .btn-add { background: #0f172a; color: #fff; }
-    .btn-buy { background: #059669; color: #fff; }
-    #productDescriptionDisplay { color: #475569; line-height: 1.6; margin-bottom: 20px; }
-    #productDescriptionDisplay strong, #productDescriptionDisplay b { font-weight: bold; color: #000; }
-    #productDescriptionDisplay em, #productDescriptionDisplay i { font-style: italic; }
-    #productDescriptionDisplay h1, #productDescriptionDisplay h2, #productDescriptionDisplay h3 { margin-top: 10px; margin-bottom: 10px; color: #000; }
-    @media (max-width: 768px) {
-      .product-page-container { margin: 0; border-radius: 0; padding: 15px; }
-      .main-image { height: 300px; }
-      .action-buttons { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 10px 15px; margin: 0; box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1); z-index: 100; }
-      body { padding-bottom: 80px; }
-    }
-  </style>
 </head>
 
-<body>
+<body class="has-sticky-buy">
   <header class="navbar">
-    <div class="nav-container" style="max-width: 1100px; margin: auto; padding: 10px; display: flex; justify-content: space-between;">
-      <a href="index.html" style="text-decoration: none; color: inherit; font-size: 1.2rem; font-weight: bold;">⬅ Back to Store</a>
+    <div class="nav-container">
+      <div class="nav-brand">
+        <a href="index.html">
+          <img src="assets/logo.png" alt="NS Smart Gadgets" class="nav-logo" onerror="this.style.display='none'" />
+          <span class="brand-name">NS Smart Gadgets</span>
+        </a>
+      </div>
       <div class="nav-actions">
-        <button id="openCartBtn" class="cart-btn-wrap btn-secondary" style="display:flex; align-items:center; gap:5px; padding: 6px 12px;">
-          🛒 Cart <span class="cart-badge" id="cartCount">0</span>
+        <div class="search-wrap">
+          <button type="button" id="searchToggleBtn" class="icon-btn" aria-label="Search products">
+            <i class="fas fa-search"></i>
+          </button>
+          <div class="search-panel" id="searchPanel">
+            <input type="search" id="productSearchInput" placeholder="Search products..." autocomplete="off" />
+            <button type="button" id="searchClearBtn" class="search-clear" aria-label="Clear search">&times;</button>
+          </div>
+        </div>
+        <button id="navAuthBtn" class="btn-secondary">Login</button>
+        <button id="trackOrderBtn" class="btn-secondary">Track Orders</button>
+        <button id="openCartBtn" class="cart-btn-wrap icon-btn" aria-label="Open cart">
+          <i class="fas fa-shopping-bag"></i>
+          <span class="cart-badge" id="cartCount">0</span>
         </button>
+      </div>
     </div>
   </header>
 
   <div class="product-page-container" id="productContainer">
     <h2 style="text-align: center; width: 100%;">Loading Product...</h2>
   </div>
-  <div id="relatedProductsSection" style="max-width: 1100px; margin: 40px auto 20px; padding: 0 20px; display: none;">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px;">
-      <h3 style="font-size: 1.4rem; color: #0f172a; margin: 0;">More from this Category</h3>
-      <a id="viewAllCategoryBtn" href="#" style="color: #0369a1; font-weight: 600; text-decoration: none; font-size: 0.95rem;">View All &rarr;</a>
+  <div id="relatedProductsSection" class="related-section" style="display: none;">
+    <div class="related-header">
+      <h3>More from this Category</h3>
+      <a id="viewAllCategoryBtn" href="#">View All &rarr;</a>
     </div>
     <div id="relatedProductsGrid" class="product-grid"></div>
   </div>
-  <!-- Cart Drawer / Modal (Product Page ke liye) -->
-  <div class="modal-overlay" id="cartModal" style="display: none;">
-    <div class="modal-content" style="max-width: 480px;">
+  <div class="modal-overlay cart-overlay" id="cartModal" style="display: none;">
+    <div class="cart-drawer">
       <button class="close-modal-btn" id="closeCartModal">&times;</button>
       <h3 class="modal-heading">Your Cart</h3>
-      <div id="cartItemsList" style="max-height: 280px; overflow-y: auto; margin-bottom: 15px;"></div>
-      <div class="price-breakdown" style="margin-bottom: 15px;">
-        <div class="price-row" style="display: flex; justify-content: space-between; font-weight: 600;">
-          <span>Total Cart Value:</span>
-          <span id="cartTotalPrice">₹0</span>
+      <div id="cartItemsList" class="cart-drawer-items"></div>
+      <div class="cart-drawer-footer">
+        <div class="price-breakdown">
+          <div class="price-row" style="display: flex; justify-content: space-between; font-weight: 600;">
+            <span>Total Cart Value:</span>
+            <span id="cartTotalPrice">₹0</span>
+          </div>
         </div>
+        <button id="cartCheckoutBtn" class="btn-primary">Proceed to Checkout</button>
       </div>
-      <button id="cartCheckoutBtn" class="btn-primary" style="width: 100%;">Proceed to Checkout</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="trackingModal" style="display: none;">
+    <div class="modal-content">
+      <button class="close-modal-btn" id="closeTrackingModal">&times;</button>
+      <div id="trackingLoginView">
+        <h3 class="modal-heading">Login / Track Orders</h3>
+        <form id="customerLoginForm">
+          <div class="form-group"><label>Phone Number</label><input type="tel" id="trackPhone" required
+              placeholder="10-digit registered number" /></div>
+          <div class="form-group"><label>Password</label><input type="password" id="trackPassword" required
+              placeholder="Enter your password" /></div>
+          <button type="submit" class="btn-primary">Login</button>
+        </form>
+        <p style="text-align: center; margin-top: 15px; font-size: 0.9rem;"><a href="#" id="showForgotPwdBtn"
+            style="color: #0369a1; text-decoration: underline;">Forgot Password?</a></p>
+      </div>
+      <div id="forgotPwdView" style="display: none;">
+        <h3 class="modal-heading">Reset Password</h3>
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 10px;">Enter verification details.</p>
+        <form id="forgotPwdForm">
+          <div class="form-group"><label>Registered Phone *</label><input type="tel" id="fpPhone" required /></div>
+          <div class="form-group"><label>Pincode *</label><input type="text" id="fpPincode" placeholder="e.g. 201002"
+              required /></div>
+          <div class="form-group"><label>New Password *</label><input type="text" id="fpNewPwd" required /></div>
+          <button type="submit" class="btn-primary" style="background: #ef4444;">Reset Password</button>
+        </form>
+        <p style="text-align: center; margin-top: 15px; font-size: 0.9rem;"><a href="#" id="backToLoginBtn"
+            style="color: #0369a1; text-decoration: underline;">Back to Login</a></p>
+      </div>
+      <div id="trackingOrdersView" style="display: none;">
+        <h3 class="modal-heading">Order History</h3>
+        <div id="customerOrdersList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="accountModal" style="display: none;">
+    <div class="modal-content" style="max-width: 350px;">
+      <button class="close-modal-btn" id="closeAccountModal">&times;</button>
+      <h3 class="modal-heading">My Account</h3>
+      <div
+        style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+        <p style="margin-bottom: 8px; font-size: 0.9rem;"><strong>Phone:</strong> <span id="accPhone"></span></p>
+        <p style="font-size: 0.9rem;"><strong>Name:</strong> <span id="accName"></span></p>
+      </div>
+      <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 15px;">Your details will automatically fill during
+        checkout.</p>
+      <button id="logoutBtn" class="btn-secondary"
+        style="width: 100%; border-color: #ef4444; color: #ef4444;">Logout</button>
     </div>
   </div>
 
@@ -91,35 +123,76 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const productId = urlParams.get('id');
+      const container = document.getElementById('productContainer');
 
+      if (!productId) { 
+          container.innerHTML = '<h2>Product Not Found</h2>'; 
+          return; 
+      }
+
+      // --- 1. SABSE PEHLE SKELETON DIKHAO (Bina kisi delay ke) ---
+      container.innerHTML = `
+        <div style="display: flex; flex-wrap: wrap; gap: 30px; width: 100%;">
+            <div class="product-gallery" style="flex: 1; min-width: 300px;">
+                <div class="skeleton" style="width: 100%; height: 400px; border-radius: 12px; margin-bottom: 10px;"></div>
+                <div class="thumb-row" style="display: flex; gap: 10px;">
+                    <div class="skeleton" style="width: 70px; height: 70px; border-radius: 8px;"></div>
+                    <div class="skeleton" style="width: 70px; height: 70px; border-radius: 8px;"></div>
+                    <div class="skeleton" style="width: 70px; height: 70px; border-radius: 8px;"></div>
+                </div>
+            </div>
+            <div class="product-info" style="flex: 1; min-width: 300px;">
+                <div class="skeleton" style="width: 30%; height: 16px; border-radius: 4px; margin-bottom: 15px;"></div>
+                <div class="skeleton" style="width: 90%; height: 35px; border-radius: 6px; margin-bottom: 15px;"></div>
+                <div class="skeleton" style="width: 50%; height: 40px; border-radius: 6px; margin-bottom: 25px;"></div>
+                <div class="skeleton" style="width: 100%; height: 120px; border-radius: 8px; margin-bottom: 20px;"></div>
+                <div style="display: flex; gap: 15px; margin-top: auto;">
+                    <div class="skeleton" style="flex: 1; height: 50px; border-radius: 10px;"></div>
+                    <div class="skeleton" style="flex: 1; height: 50px; border-radius: 10px;"></div>
+                </div>
+            </div>
+        </div>
+      `;
+
+      
+
+      // 3. Settings aur Product dono ko ek saath fetch karo
       try {
-        const setRes = await fetch(`${CONFIG.BASE_URL}/settings`);
-        const setData = await setRes.json();
-        if (setData.success && setData.data) {
-          CONFIG.globalAdvancePayment = setData.data.defaultAdvanceAmount !== undefined ? setData.data.defaultAdvanceAmount : (setData.data.defaultAdvancePayment || 300);
-          if (setData.data.whatsappNumber) {
-            const waBtn = document.getElementById('floatingWaBtn');
-            if (waBtn) {
-              let cleanPhone = String(setData.data.whatsappNumber).replace(/\D/g, '');
-              if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
-              waBtn.href = `https://wa.me/${cleanPhone}?text=Need%20Help%20with%20a%20product`;
-              waBtn.style.display = 'flex'; 
+        const [setRes, prodRes] = await Promise.all([
+            fetch(`${CONFIG.BASE_URL}/settings`).catch(() => null),
+            fetch(`${CONFIG.BASE_URL}/products/${productId}`)
+        ]);
+
+        // Settings load karna
+        if (setRes) {
+            const setData = await setRes.json();
+            if (setData.success && setData.data) {
+              CONFIG.globalAdvancePayment = setData.data.defaultAdvanceAmount !== undefined ? setData.data.defaultAdvanceAmount : (setData.data.defaultAdvancePayment || 300);
+              if (setData.data.whatsappNumber) {
+                const waBtn = document.getElementById('floatingWaBtn');
+                if (waBtn) {
+                  let cleanPhone = String(setData.data.whatsappNumber).replace(/\D/g, '');
+                  if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+                  waBtn.href = `https://wa.me/${cleanPhone}?text=Need%20Help%20with%20a%20product`;
+                  waBtn.style.display = 'flex';
+                }
+              }
             }
-          }
         }
-      } catch (err) { console.log('Settings load error:', err); }
 
-      if (!productId) { document.getElementById('productContainer').innerHTML = '<h2>Product Not Found</h2>'; return; }
-
-      try {
-        const res = await fetch(`${CONFIG.BASE_URL}/products/${productId}`);
-        const data = await res.json();
-        if (data.success && (data.data || data.product)) { renderProductPage(data.data || data.product); } 
-        else { document.getElementById('productContainer').innerHTML = '<h2>Product Not Found</h2>'; }
-      } catch (err) { document.getElementById('productContainer').innerHTML = '<h2>Error loading product</h2>'; }
+        // Product load karna
+        const data = await prodRes.json();
+        if (data.success && (data.data || data.product)) { 
+            renderProductPage(data.data || data.product); 
+        } else { 
+            container.innerHTML = '<h2>Product Not Found</h2>'; 
+        }
+      } catch (err) { 
+          container.innerHTML = '<h2>Error loading product</h2>'; 
+      }
     });
 
-    window.changeMainImage = function(thumbElement, imageUrl) {
+    window.changeMainImage = function (thumbElement, imageUrl) {
       document.getElementById('mainProductImage').src = imageUrl;
       document.querySelectorAll('.thumb-img').forEach(el => el.classList.remove('active'));
       thumbElement.classList.add('active');
@@ -221,6 +294,22 @@
                 <div id="productDescriptionDisplay">${p.description || '<p>Premium quality product delivered safely.</p>'}</div>
                 ${actionButtonsHTML}
             </div>
+            <!-- Premium Trust Tags UI -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 25px; padding-top: 20px; border-top: 1px dashed #cbd5e1; width: 100%;">
+                
+                <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.8rem; color: #1e293b; font-weight: 700; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #f8fafc; box-shadow: 0 2px 4px rgba(0,0,0,0.02); white-space: nowrap;">
+                    <i class="fas fa-truck" style="color: #059669; font-size: 1.1rem;"></i> Delivery under 7 days
+                </div>
+                
+                <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.8rem; color: #1e293b; font-weight: 700; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #f8fafc; box-shadow: 0 2px 4px rgba(0,0,0,0.02); white-space: nowrap;">
+                    <i class="fas fa-shield-alt" style="color: #059669; font-size: 1.1rem;"></i> 100% Secure
+                </div>
+                
+                <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.8rem; color: #1e293b; font-weight: 700; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #f8fafc; box-shadow: 0 2px 4px rgba(0,0,0,0.02); white-space: nowrap;">
+                    <i class="fas fa-medal" style="color: #059669; font-size: 1.1rem;"></i> Premium Quality
+                </div>
+
+            </div>
         `;
 
       // trackProductView(p._id); // इसे भी कमेंट कर दिया है ताकि बैकएंड पर फालतू व्यूज़ हिट न हों
@@ -252,15 +341,19 @@
             grid.innerHTML = top4.map(p => {
               const img = p.thumbnailUrl || (p.images && p.images.length > 0 ? p.images[0] : (p.imageUrl || 'https://placehold.co/200'));
               let actionHtml = p.inStock === false
-                ? `<div style="color: #dc2626; font-size: 0.85rem; font-weight: bold; background: #fee2e2; padding: 8px; border-radius: 4px;">Out of Stock</div>`
-                : `<button onclick="window.addSingleToCart('${p._id}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, '${img}')" style="background: #0f172a; color: #fff; border: none; padding: 8px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: 600;">Add to Cart</button>`;
+                ? `<div class="out-of-stock">Out of Stock</div>`
+                : `<button class="btn-select-options" onclick="window.addSingleToCart('${p._id}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, '${img}')">Add to Cart</button>`;
 
               return `
-                        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #fff; text-align: center; display: flex; flex-direction: column;">
-                            <img src="${img}" style="width: 100%; height: 160px; object-fit: contain; cursor: pointer; margin-bottom: 10px;" onclick="window.location.href='product.html?id=${p._id}'">
-                            <h4 style="font-size: 0.95rem; margin: 0 0 5px; color: #0f172a; cursor: pointer; flex-grow: 1;" onclick="window.location.href='product.html?id=${p._id}'">${p.title}</h4>
-                            <div style="color: #059669; font-weight: bold; margin-bottom: 10px;">${CONFIG.CURRENCY}${p.price}</div>
-                            ${actionHtml}
+                        <div class="product-card">
+                            <div class="card-img-wrap" onclick="window.location.href='product.html?id=${p._id}'">
+                              <img src="${img}" alt="${p.title}">
+                            </div>
+                            <div class="card-body">
+                              <h4 class="card-title" onclick="window.location.href='product.html?id=${p._id}'">${p.title}</h4>
+                              <div class="card-prices"><span class="sell-price">${CONFIG.CURRENCY}${p.price}</span></div>
+                              ${actionHtml}
+                            </div>
                         </div>`;
             }).join('');
           }
@@ -296,37 +389,43 @@
       const totalGroups = document.querySelectorAll('.variant-group').length;
       if (activeBtns.length < totalGroups) { alert('Please select all product options before adding to cart.'); return; }
       let finalTitle = selectedVariants.length > 0 ? `${title} (${selectedVariants.join(', ')})` : title;
-      window.addSingleToCart(productId, finalTitle, basePrice, image,advanceAmount);
+      window.addSingleToCart(productId, finalTitle, basePrice, image, advanceAmount);
     }
     // Web Share API Logic
-    window.shareProduct = async function(title, price) {
-        const shareData = {
-            title: title,
-            text: `Check out this amazing product: ${title} for just ₹${price}!\n`,
-            url: window.location.href // करंट पेज का लिंक
-        };
+    window.shareProduct = async function (title, price) {
+      const shareData = {
+        title: title,
+        text: `Check out this amazing product: ${title} for just ₹${price}!\n`,
+        url: window.location.href // करंट पेज का लिंक
+      };
 
-        try {
-            if (navigator.share) {
-                // मोबाइल में WhatsApp, Telegram वगैरह के ऑप्शन खुलेंगे
-                await navigator.share(shareData);
-            } else {
-                // अगर कोई पुराने डेस्कटॉप ब्राउज़र पर है, तो लिंक कॉपी हो जाएगा
-                navigator.clipboard.writeText(window.location.href);
-                alert("Product link copied to clipboard!");
-            }
-        } catch (err) {
-            console.log("Error sharing:", err);
+      try {
+        if (navigator.share) {
+          // मोबाइल में WhatsApp, Telegram वगैरह के ऑप्शन खुलेंगे
+          await navigator.share(shareData);
+        } else {
+          // अगर कोई पुराने डेस्कटॉप ब्राउज़र पर है, तो लिंक कॉपी हो जाएगा
+          navigator.clipboard.writeText(window.location.href);
+          alert("Product link copied to clipboard!");
         }
+      } catch (err) {
+        console.log("Error sharing:", err);
+      }
     }
   </script>
 
-  <a href="#" id="floatingWaBtn" class="whatsapp-float" target="_blank" style="display: none;">
-    <img src="assets/client.jpg" alt="Logo" class="wa-logo" onerror="this.src='https://placehold.co/30'">
-    <span class="wa-text">Need Help</span>
-    <i class="fab fa-whatsapp wa-icon-img"></i>
-  </a>
+  <!-- Beautiful Floating WhatsApp Button with Owner Image -->
+  <!-- Clean Floating WhatsApp Button -->
+<a href="#" id="floatingWaBtn" target="_blank" style="display: none; position: fixed; bottom: 85px; right: 20px; background: #ffffff; padding: 6px 14px 6px 6px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); align-items: center; gap: 8px; text-decoration: none; border: 1.5px solid #25D366; z-index: 9999;">
+  <img src="assets/client.jpg" alt="Support" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" onerror="this.src='https://placehold.co/36'">
+  <div style="display: flex; flex-direction: column; text-align: left;">
+    <span style="color: #64748b; font-size: 0.7rem; font-weight: 600; line-height: 1.1;">Need Help?</span>
+    <span style="color: #1e293b; font-size: 0.85rem; font-weight: 700; line-height: 1.2;">Chat with Us</span>
+  </div>
+  <i class="fab fa-whatsapp" style="color: #25D366; font-size: 1.4rem;"></i>
+</a>
   <div id="footer-container"></div>
   <script src="js/footer.js"></script>
 </body>
+
 </html>

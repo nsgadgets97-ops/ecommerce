@@ -69,38 +69,55 @@
       color: #fff;
     }
 
-    .sub-tabs-bar {
-      display: flex;
-      gap: 6px;
-      background: #e2e8f0;
-      padding: 5px;
-      border-radius: 10px;
-      margin-bottom: 16px;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
+    /* --- NEW CARD-STYLE STATUS TABS (PC & Mobile) --- */
+.sub-tabs-bar {
+  display: flex;
+  gap: 12px;
+  padding: 4px 2px 10px 2px; /* Shadow aur scroll ke liye padding */
+  background: transparent;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+}
 
-    .sub-tabs-bar::-webkit-scrollbar {
-      display: none;
-    }
+.sub-tabs-bar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
 
-    .sub-tab-btn {
-      background: transparent;
-      border: none;
-      padding: 6px 12px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      border-radius: 6px;
-      cursor: pointer;
-      color: #475569;
-      white-space: nowrap;
-    }
+.sub-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 14px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 140px;
+  transition: all 0.2s ease;
+  text-align: left;
+}
 
-    .sub-tab-btn.active {
-      background: #ffffff;
-      color: var(--dark);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
+.sub-tab-btn.active {
+  background: #eff6ff; /* Light blue background like screenshot */
+  border-color: #93c5fd; /* Blue border */
+  box-shadow: 0 0 0 1px #93c5fd; /* Crisp border effect */
+}
+
+.tab-count-val {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+  line-height: 1;
+}
+
+.tab-count-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #475569;
+}
 
     .tab-panel {
       display: none;
@@ -361,19 +378,29 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <h3>Customer Orders Pipeline</h3>
       </div>
-      <div style="margin-bottom: 15px;">
+      
+      <!-- Orders Search & Bulk Actions Bar -->
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
         <input type="text" id="orderSearchInput" placeholder="🔍 Search by Order ID, Phone, or Customer Name..."
-          style="width: 100%; max-width: 450px; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;"
+          style="flex: 1; max-width: 450px; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;"
           oninput="filterOrders()" />
+        <button type="button" onclick="openStaleOrdersModal()" class="btn-action"
+          style="background: #dc2626; color: white; padding: 10px 16px; border-radius: 6px; font-weight: 600;">
+          🗑️ Review & Clean Old Pending Orders
+        </button>
       </div>
       <!-- Sub-Tabs for Order Status Pipeline -->
       <div class="sub-tabs-bar">
         <button class="sub-tab-btn active" onclick="filterOrders('All')">All Orders</button>
+        <button class="sub-tab-btn" onclick="filterOrders('Screenshot Pending')">Screenshot Pending</button>
         <button class="sub-tab-btn" onclick="filterOrders('Pending')">Pending</button>
         <button class="sub-tab-btn" onclick="filterOrders('Accepted')">Accepted (To Pack)</button>
         <button class="sub-tab-btn" onclick="filterOrders('Packed')">Packed (To Dispatch)</button>
         <button class="sub-tab-btn" onclick="filterOrders('Dispatched')">Dispatched</button>
         <button class="sub-tab-btn" onclick="filterOrders('Delivered')">Delivered</button>
+        <!-- Naya RTO Tab -->
+        <button class="sub-tab-btn" onclick="filterOrders('RTO')" style="color: #991b1b;">RTO</button>
       </div>
 
       <div class="data-table-wrapper">
@@ -394,6 +421,15 @@
           </tbody>
         </table>
       </div>
+      <div id="ordersPagination"
+        style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding: 10px; background: #fff; border: 1px solid var(--border); border-radius: 8px;">
+        <button type="button" onclick="changeOrderPage(-1)" id="prevOrderPageBtn" class="btn-secondary"
+          style="padding: 6px 14px;">&larr; Previous</button>
+        <span id="orderPageInfo" style="font-size: 0.9rem; font-weight: 600; color: #475569;">Page 1</span>
+        <button type="button" onclick="changeOrderPage(1)" id="nextOrderPageBtn" class="btn-secondary"
+          style="padding: 6px 14px;">Next &rarr;</button>
+      </div>
+
     </div>
 
     <!-- 2. Products Panel -->
@@ -468,11 +504,19 @@
                 In Stock (Active)
               </label>
             </div>
+            <div class="form-group">
+              <label for="productPriority">Priority Rank (Higher = Top)</label>
+              <input type="number" id="productPriority" placeholder="0 (Default)" min="0" value="0"
+                style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;" />
+              <small style="color: #64748b;">Example: 10 will show above 0</small>
+            </div>
             <div style="margin-bottom: 15px;">
               <label style="display: block; margin-bottom: 5px; font-weight: 600;">YouTube Video Link (Optional)</label>
               <input type="url" id="pYoutubeLink" placeholder="https://www.youtube.com/watch?v=..."
                 style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;" />
             </div>
+            
+
 
             <!-- Variants Section -->
             <div
@@ -581,17 +625,31 @@
     <!-- 4. Banners Section -->
     <div id="banners" class="tab-panel">
       <h2>Manage Homepage Banners</h2>
-      <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Note: Maximum 4 banners active ho sakte hain.</p>
-
+      <p
+        style="color: #dc2626; font-size: 14px; font-weight: 700; margin-bottom: 15px; padding: 10px; background: #fee2e2; border-radius: 6px;">
+        ⚠️ STRICT RULE: Banner ki photo bilkul "YouTube Thumbnail" ke size ki honi chahiye (1280x720 pixels). Iske alawa
+        koi size accept nahi hoga!
+      </p>
       <form id="addBannerForm" style="margin-bottom: 30px;">
         <div class="form-group" style="margin-bottom: 12px;">
           <label style="display: block; margin-bottom: 5px;">Banner Image (Will upload to GitHub) *</label>
           <input type="file" id="bannerImageInput" accept="image/*" required>
         </div>
-        <div class="form-group" style="margin-bottom: 14px;">
+        <!-- <div class="form-group" style="margin-bottom: 14px;">
           <label style="display: block; margin-bottom: 5px;">Target Link (Product link yahan paste karein)</label>
           <input type="text" id="bannerLinkInput" placeholder="e.g., http://.../frontend/index.html?product=..."
             style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        </div> -->
+        <div class="form-group" style="margin-bottom: 14px; position: relative;">
+          <label style="display: block; margin-bottom: 5px;">Search & Select Product (Optional)</label>
+          <input type="text" id="bannerProductSearch" placeholder="Type product name to search..."
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" autocomplete="off">
+          <input type="hidden" id="bannerSelectedProductId" value="">
+
+          <!-- Ye list type karne par ya click karne par khulegi -->
+          <ul id="bannerProductDropdown"
+            style="display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 4px; padding: 0; list-style: none; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          </ul>
         </div>
         <button type="submit" class="btn-primary">Upload Banner</button>
       </form>
@@ -639,6 +697,31 @@
           <label style="display: block; margin-bottom: 5px; font-weight: 600;">Announcement Message 3</label>
           <input type="text" id="announcement3" accept="image/*" />
         </div>
+        <!-- How To Order Video Settings -->
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e2e8f0;">
+        <h4 style="margin-bottom: 10px; color: var(--primary);">How to Order Video (Home Page)</h4>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Video Button Title</label>
+          <input type="text" id="settingVideoTitle" placeholder="e.g. How to Order / Guide"
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">YouTube Video Link</label>
+          <input type="url" id="settingVideoUrl" placeholder="https://youtube.com/..."
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+        </div>
+
+        <!-- Pending Orders Threshold Settings -->
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e2e8f0;">
+        <h4 style="margin-bottom: 10px; color: var(--danger);">Pending Orders Cleanup Settings</h4>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Default Cleanup Age (Hours) *</label>
+          <input type="number" id="settingExpiryHours" value="48"
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;" />
+          <small style="color: #64748b; font-size: 0.78rem;">Orders Tab me is ghante se purane orders filter
+            honge.</small>
+        </div>
 
         <button type="submit" class="btn-primary">Save Settings</button>
       </form>
@@ -652,6 +735,77 @@
       <h3 style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">Order Full Details
       </h3>
       <div id="orderModalContent"></div>
+    </div>
+  </div>
+
+  <!-- Edit Payment Mode Modal -->
+  <div class="modal-overlay" id="editPaymentModal">
+    <div class="modal-box" style="max-width: 400px;">
+      <button class="modal-close-btn" onclick="closeEditPaymentModal()">&times;</button>
+      <h3
+        style="margin-bottom: 12px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+        Edit Payment Details</h3>
+
+      <form id="editPaymentForm">
+        <input type="hidden" id="epOrderId" value="">
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Payment Mode</label>
+          <select id="epPaymentType" style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;"
+            onchange="toggleEpAmount()">
+            <option value="ADVANCE_COD">COD (Cash on Delivery)</option>
+            <option value="FULL_PAID">Fully Paid (Online)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="epAmountDiv" style="margin-bottom: 18px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Advance / Paid Amount
+            (₹)</label>
+          <input type="number" id="epAmountOnline"
+            style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1;">
+          <small style="color: #64748b; font-size: 0.75rem; display: block; margin-top: 4px;">COD में एडवांस अमाउंट
+            डालें, Fully Paid में आर्डर का पूरा अमाउंट डालें।</small>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn-secondary" onclick="closeEditPaymentModal()"
+            style="padding: 8px 14px;">Cancel</button>
+          <button type="button" onclick="savePaymentDetails()" class="btn-primary" style="padding: 8px 16px;">Save
+            Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- Stale Orders Bulk Delete Modal -->
+  <div class="modal-overlay" id="staleOrdersModal">
+    <div class="modal-box" style="max-width: 650px;">
+      <button class="modal-close-btn" onclick="closeStaleOrdersModal()">&times;</button>
+      <h3 style="margin-bottom: 10px; color: var(--danger);">Clean Old Pending Orders</h3>
+      <p id="staleOrdersInfoText" style="font-size: 0.85rem; color: #64748b; margin-bottom: 14px;"></p>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <label
+          style="font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+          <input type="checkbox" id="selectAllStaleOrders" onchange="toggleSelectAllStale(this)" checked
+            style="width: 16px; height: 16px;">
+          Select / Unselect All
+        </label>
+        <span id="selectedStaleCount" style="font-size: 0.85rem; font-weight: 600; color: #2563eb;">0 selected</span>
+      </div>
+
+      <div id="staleOrdersListContainer"
+        style="max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--bg-light); margin-bottom: 16px;">
+        <!-- Orders check-list will render here -->
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn-secondary" onclick="closeStaleOrdersModal()"
+          style="padding: 9px 16px;">Cancel</button>
+        <button type="button" id="btnDeleteSelectedStale" onclick="deleteSelectedStaleOrders()" class="btn-action"
+          style="background: var(--danger); color: white; padding: 9px 20px;">
+          Delete Selected Orders
+        </button>
+      </div>
     </div>
   </div>
   <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>

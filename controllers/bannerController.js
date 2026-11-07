@@ -26,7 +26,7 @@ exports.getAllBanners = async (req, res) => {
 // 3. Create Banner (Admin only)
 // controllers/bannerController.js (Sirf createBanner function replace karein)
 
-const { uploadToGitHub } = require('../utils/githubUpload'); // GitHub upload function
+const { uploadToGitHub, deleteFromGitHub } = require('../utils/githubUpload'); // GitHub upload function
 
 exports.createBanner = async (req, res) => {
   try {
@@ -68,12 +68,28 @@ exports.updateBanner = async (req, res) => {
 };
 
 // 5. Delete Banner
+// 5. Delete Banner (GitHub + Database)
 exports.deleteBanner = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 1. डेटाबेस से बैनर ढूँढें ताकि इमेज का URL मिल सके
+    const banner = await Banner.findById(id);
+    if (!banner) {
+      return res.status(404).json({ success: false, message: 'Banner not found' });
+    }
+
+    // 2. अगर बैनर में इमेज है, तो आपके existing function से GitHub से डिलीट करें
+    if (banner.imageUrl) {
+      await deleteFromGitHub(banner.imageUrl);
+    }
+
+    // 3. GitHub से डिलीट होने के बाद MongoDB से भी डिलीट कर दें
     await Banner.findByIdAndDelete(id);
-    res.status(200).json({ success: true, message: 'Banner delete ho gaya' });
+    
+    res.status(200).json({ success: true, message: 'Banner successfully deleted from Database and GitHub' });
   } catch (error) {
+    console.error('Delete Banner Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -1,6 +1,19 @@
 const Product = require('../models/Product');
 const { uploadToGitHub, deleteFromGitHub } = require('../utils/githubUpload');
 const sharp = require('sharp');
+const sanitizeHtml = require('sanitize-html'); // 🔒 XSS Protection
+
+// 🔒 Safe Sanitize Function (HTML Tags ko allow karta hai, script ko block)
+const cleanHTML = (html) => {
+  if (!html) return html;
+  return sanitizeHtml(html, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      '*': ['style', 'class'] // Basic styling allow karne ke liye
+    }
+  });
+};
 
 const deleteImagesInBackground = async (imageUrls) => {
   try {
@@ -13,43 +26,82 @@ const deleteImagesInBackground = async (imageUrls) => {
   }
 };
 
+exports.getProductById = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).populate('category', 'name');
+    if (!product) return res.status(404).json({ success: false, message: 'Product nahi mila' });
+    res.status(200).json({ success: true, data: product, product });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
+exports.deleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 
-// 1. Get products (Category filter, Pagination aur Bandwidth Save ke sath)
-// 1. Get products (Category filter, Pagination, aur Admin Check ke sath)
+    const imagesToDelete = [
+      ...(product.images || []),
+      product.imageUrl,
+      product.thumbnailUrl
+    ].filter(Boolean); 
+
+    await Product.findByIdAndDelete(req.params.id);
+    res.status(200).json({ success: true, message: 'Product deleted permanently' });
+
+    if (imagesToDelete.length > 0) {
+      deleteImagesInBackground(imagesToDelete);
+    }
+  } catch (err) {
+    console.error("Delete product error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.getProducts = async (req, res) => {
   try {
-    const { categoryId, admin, page: queryPage } = req.query;
+    const { categoryId, admin, page: queryPage, search, sort } = req.query;
     let query = {};
 
-    // 1. Category filter lagayein
     if (categoryId && categoryId.toLowerCase() !== 'all') {
       query.category = categoryId;
     }
 
-    // 2. Basic Query banayein (Customer aur Admin dono ko saare products dikhenge)
-    let productQuery = Product.find(query)
-      .select('title price mrp thumbnailUrl inStock advancePayment images category youtubeLink variants')
-      .populate('category', 'name')
-      .sort({ createdAt: -1 });
+    if (search) {
+      // 🔒 Search query ko bhi sanitize karein taki NoSQL/XSS attacks na ho
+      const safeSearch = sanitizeHtml(search, { allowedTags: [], allowedAttributes: {} });
+      query.$or = [
+        { title: { $regex: safeSearch, $options: 'i' } },
+        { description: { $regex: safeSearch, $options: 'i' } }
+      ];
+    }
 
-    // 3. Pagination sirf Customer ke liye (Jab admin request na ho)
+    let sortOption = {};
+    if (sort === 'priceLowHigh') sortOption = { price: 1 };
+    else if (sort === 'priceHighLow') sortOption = { price: -1 };
+    else if (sort === 'nameAZ') sortOption = { title: 1 };
+    else if (sort === 'nameZA') sortOption = { title: -1 };
+    else sortOption = { priority: -1, createdAt: -1 };
+
+    let productQuery = Product.find(query)
+      .select('title price mrp thumbnailUrl createdAt inStock advancePayment images category youtubeLink variants priority')
+      .populate('category', 'name')
+      .sort(sortOption);
+
     let page = 1;
     let hasMore = false;
 
     if (admin !== 'true') {
-      const limit = 30; // Customer ko ek baar me 30 product dikhenge
+      const limit = 30;
       page = parseInt(queryPage) || 1;
       const skip = (page - 1) * limit;
 
-      // Query mein pagination add karein
       productQuery = productQuery.skip(skip).limit(limit);
-
       const totalCount = await Product.countDocuments(query);
       hasMore = (page * limit) < totalCount;
     }
 
-    // Query execute karein
     const products = await productQuery;
 
     res.status(200).json({
@@ -66,33 +118,23 @@ exports.getProducts = async (req, res) => {
   }
 };
 
-// 2. Get single product details
-exports.getProductById = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id).populate('category', 'name');
-    if (!product) return res.status(404).json({ success: false, message: 'Product nahi mila' });
-    res.status(200).json({ success: true, data: product, product });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// 3. Create Product (Thumbnail Creation included)
 exports.createProduct = async (req, res) => {
   try {
-    const { title, description, category, price, mrp, advancePayment, adminId, youtubeLink, variants } = req.body;
+    let { title, description, category, price, mrp, advancePayment, adminId, youtubeLink, variants, priority } = req.body; 
 
     if (!title || !category || !price || !mrp) {
       return res.status(400).json({ success: false, message: 'Sabhi zaroori fields bharein' });
     }
-
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, message: 'Kam se kam 1 image zaroori hai' });
     }
-
     if (req.files.length > 4) {
       return res.status(400).json({ success: false, message: 'Maximum 4 images allow hain' });
     }
+
+    // 🔒 Sanitization Data (Safe Save)
+    title = sanitizeHtml(title, { allowedTags: [], allowedAttributes: {} }); 
+    description = cleanHTML(description);
 
     const imageUrls = [];
     let thumbnailUrl = '';
@@ -102,23 +144,14 @@ exports.createProduct = async (req, res) => {
       const url = await uploadToGitHub(file.buffer, file.originalname, 'products');
       imageUrls.push(url);
 
-      // Pehli image (Index 0) ka 300px ka Thumbnail banayein
       if (i === 0) {
-        const thumbBuffer = await sharp(file.buffer)
-          .resize({ width: 300, withoutEnlargement: true })
-          .webp({ quality: 80 })
-          .toBuffer();
+        const thumbBuffer = await sharp(file.buffer).resize({ width: 300, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
         thumbnailUrl = await uploadToGitHub(thumbBuffer, `thumb_${file.originalname}`, 'products/thumbnails');
       }
     }
+    
     let parsedVariants = [];
-    if (variants) {
-      try {
-        parsedVariants = JSON.parse(variants);
-      } catch (error) {
-        console.error('Error parsing variants:', error);
-      }
-    }
+    if (variants) { try { parsedVariants = JSON.parse(variants); } catch (error) { console.error('Error parsing variants:', error); } }
 
     const newProduct = new Product({
       title, description, category,
@@ -130,7 +163,8 @@ exports.createProduct = async (req, res) => {
       createdBy: adminId || null,
       updatedBy: adminId || null,
       youtubeLink: youtubeLink || '',
-      variants: parsedVariants
+      variants: parsedVariants,
+      priority: priority ? Number(priority) : 0 
     });
 
     await newProduct.save();
@@ -140,47 +174,35 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-// 4. Update Product (With new Thumbnail generation)
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, category, price, mrp, advancePayment, existingImages, description, inStock, youtubeLink, variants } = req.body;
+    let { title, category, price, mrp, advancePayment, existingImages, description, inStock, youtubeLink, variants, priority } = req.body;
 
     let product = await Product.findById(id);
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 
-    // 1. Purani images aur thumbnail ka backup le rahe hain (delete logic ke liye)
     const oldImages = product.images ? [...product.images] : [];
-    const oldThumbnail = product.thumbnailUrl;
     let parsedVariants = [];
-    if (variants) {
-      try {
-        parsedVariants = JSON.parse(variants);
-      } catch (error) {
-        console.error('Error parsing variants in update:', error);
-      }
-    }
+    if (variants) { try { parsedVariants = JSON.parse(variants); } catch (error) {} }
 
-    // 2. Normal text fields update
-    if (title) product.title = title;
+    // 🔒 Sanitization Data
+    if (title) product.title = sanitizeHtml(title, { allowedTags: [], allowedAttributes: {} });
+    if (description !== undefined) product.description = cleanHTML(description);
+
     if (category) product.category = category;
     if (price) product.price = Number(price);
     if (mrp) product.mrp = Number(mrp);
-    if (description !== undefined) product.description = description;
     if (inStock !== undefined) product.inStock = (inStock === 'true');
     product.youtubeLink = youtubeLink || '';
     product.variants = parsedVariants;
+    if (priority !== undefined) product.priority = Number(priority); 
 
-    // 3. Advance Payment Fix
     if (advancePayment !== undefined) {
-      if (advancePayment === '' || advancePayment === 'null') {
-        product.advancePayment = undefined;
-      } else {
-        product.advancePayment = Number(advancePayment);
-      }
+      if (advancePayment === '' || advancePayment === 'null') product.advancePayment = undefined;
+      else product.advancePayment = Number(advancePayment);
     }
 
-    // 4. Existing images ka array handle karna
     let finalImages = [];
     if (existingImages) {
       try { finalImages = JSON.parse(existingImages); }
@@ -188,8 +210,6 @@ exports.updateProduct = async (req, res) => {
     }
 
     let newFilesData = [];
-
-    // 5. Nayi files upload karna (aur buffer save rakhna thumbnail ke liye)
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
         const url = await uploadToGitHub(file.buffer, file.originalname, 'products');
@@ -198,60 +218,36 @@ exports.updateProduct = async (req, res) => {
       }
     }
 
-    // Max 3 images limit
     finalImages = finalImages.slice(0, 3);
     product.images = finalImages;
 
-    // ==========================================
-    // 6. SMART THUMBNAIL LOGIC (Bulletproof Fix)
-    // ==========================================
     let thumbnailToDeleteInBg = null;
-
     if (finalImages.length > 0) {
-      // Agar main image (Pehli photo) change hui hai, ya pehle se thumbnail nahi hai
       if (finalImages[0] !== oldImages[0] || !product.thumbnailUrl) {
-
-        // ✅ FIX: Pehle hi purana thumbnail DB se hata do, taaki galat photo na dikhe
         thumbnailToDeleteInBg = product.thumbnailUrl;
         product.thumbnailUrl = '';
+        let thumbBuffer, thumbFileName;
 
-        let thumbBuffer;
-        let thumbFileName;
-
-        // Condition A: Agar nayi main image abhi upload hui hai
         const matchedNewFile = newFilesData.find(f => f.url === finalImages[0]);
         if (matchedNewFile) {
           thumbBuffer = matchedNewFile.buffer;
           thumbFileName = `thumb_${matchedNewFile.originalname}`;
-        }
-        // Condition B: Agar purani image main ban gayi hai, toh GitHub se download karo
-        else {
+        } else {
           try {
             const axios = require('axios');
-            // Timeout badha diya hai taaki network slow ho toh jaldi fail na ho
             const response = await axios.get(finalImages[0], { responseType: 'arraybuffer', timeout: 15000 });
             thumbBuffer = Buffer.from(response.data);
             thumbFileName = `thumb_recovered_${Date.now()}.webp`;
-          } catch (fetchErr) {
-            console.error('⚠️ Thumbnail banane ke liye image fetch fail ho gayi (Network Issue):', fetchErr.message);
-          }
+          } catch (fetchErr) {}
         }
-
-        // Agar buffer mil gaya, toh upload karo
         if (thumbBuffer) {
           try {
-            const resizedBuffer = await sharp(thumbBuffer)
-              .resize({ width: 300, withoutEnlargement: true })
-              .webp({ quality: 80 })
-              .toBuffer();
+            const resizedBuffer = await sharp(thumbBuffer).resize({ width: 300, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
             product.thumbnailUrl = await uploadToGitHub(resizedBuffer, thumbFileName, 'products/thumbnails');
-          } catch (sharpErr) {
-            console.error('⚠️ Thumbnail upload error:', sharpErr.message);
-          }
+          } catch (sharpErr) {}
         }
       }
     } else {
-      // Agar saari photos delete kar di hain
       thumbnailToDeleteInBg = product.thumbnailUrl;
       product.images = [];
       product.thumbnailUrl = '';
@@ -260,56 +256,15 @@ exports.updateProduct = async (req, res) => {
     await product.save();
     res.status(200).json({ success: true, message: 'Product updated successfully', product });
 
-    // ==========================================
-    // 7. ASYNC BACKGROUND GITHUB DELETION LOGIC
-    // ==========================================
     setTimeout(async () => {
       try {
-        // Un images ko dhundo jo purane array mein thi par naye mein nahi hain
         const imagesToDelete = oldImages.filter(oldImg => !finalImages.includes(oldImg));
-
-        for (const imgUrl of imagesToDelete) {
-          await deleteFromGitHub(imgUrl);
-        }
-
-        // Agar humne naya thumbnail banaya hai, toh purana GitHub se delete karo
-        if (thumbnailToDeleteInBg) {
-          await deleteFromGitHub(thumbnailToDeleteInBg);
-        }
-      } catch (delErr) {
-        console.error("Background image deletion failed (Network timeout likely):", delErr.message);
-      }
+        for (const imgUrl of imagesToDelete) await deleteFromGitHub(imgUrl);
+        if (thumbnailToDeleteInBg) await deleteFromGitHub(thumbnailToDeleteInBg);
+      } catch (delErr) {}
     }, 0);
 
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// 2. DELETE PRODUCT (Background delete ke sath)
-exports.deleteProduct = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-
-    // Delete hone wali saari images ka array bana lo (main images + old imageUrl + thumbnail)
-    const imagesToDelete = [
-      ...(product.images || []),
-      product.imageUrl,
-      product.thumbnailUrl
-    ].filter(Boolean); // filter(Boolean) se null ya undefined value array se hat jayegi
-
-    // 🚀 Database se turant product hata do aur Admin ko success bhej do
-    await Product.findByIdAndDelete(req.params.id);
-    res.status(200).json({ success: true, message: 'Product deleted permanently' });
-
-    // ⏳ RESPONSE JANE KE BAAD Background Task start kar do
-    if (imagesToDelete.length > 0) {
-      deleteImagesInBackground(imagesToDelete);
-    }
-
-  } catch (err) {
-    console.error("Delete product error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

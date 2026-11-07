@@ -1,15 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { updateSettings, getSettings } = require('../controllers/settingController'); // controller ka naam apne hisaab se check kar lena
+const { updateSettings, getSettings } = require('../controllers/settingController'); 
 
-// Multer memory storage setup
+// 🔒 Auth Middleware Import Karein
+const { verifyAdmin } = require('../middlewares/authMiddleware');
+
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Get settings
+// ✅ Public Route (UI ke liye settings lena)
 router.get('/', getSettings);
 
-// Update settings (Yahan upload.single('qrImage') lagana zaroori hai)
-router.put('/update', upload.single('qrImage'), updateSettings);
+// 🔒 Protected Admin Route (Settings sirf admin badal sakta hai)
+router.put('/update', verifyAdmin, upload.single('qrImage'), updateSettings);
 
 module.exports = router;

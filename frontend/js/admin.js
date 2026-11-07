@@ -1,8 +1,19 @@
-let adminToken = localStorage.getItem('storeAdminToken') || null;
+let adminToken = localStorage.getItem('isLoggedIn') === 'true' ? true : null;
 let allOrdersData = [];
 let allProductsList = [];
-let editProductCurrentImages = []; // Stores remaining images during edit
-let quillEditor; // Quill Editor को ग्लोबल वेरिएबल बनाया है
+let editProductCurrentImages = [];
+let quillEditor;
+
+// --- PAGINATION VARIABLES ---
+let filteredOrdersList = [];
+let currentOrderPage = 1;
+const ORDERS_PER_PAGE = 50;
+
+// --- FLAGS FIX ---
+let isProductsLoaded = false;
+let isCategoriesLoaded = false;
+let isBannersLoaded = false;
+let isSettingsLoaded = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   if (adminToken) {
@@ -12,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   setupAdminEvents();
 
-  // Quill Editor को DOM लोड होने के बाद चालू करें
   quillEditor = new Quill('#productEditor', {
     theme: 'snow'
   });
@@ -27,14 +37,9 @@ function showDashboard() {
   document.getElementById('adminLoginBox').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
   loadOrders();
-  loadAdminProducts();
-  loadAdminCategories();
-  loadCurrentSettings();
-  loadBanners();
 }
 
 function setupAdminEvents() {
-  // Main Tabs Navigation (With URL Hash Logic)
   document.querySelectorAll('.tab-btn[data-tab]').forEach((btn) => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn[data-tab]').forEach((b) => b.classList.remove('active'));
@@ -43,22 +48,35 @@ function setupAdminEvents() {
       const tabId = btn.dataset.tab;
       const targetPanel = document.getElementById(tabId);
       if (targetPanel) targetPanel.classList.add('active');
-
-      // URL में टैब का नाम अपडेट करें
       window.location.hash = tabId;
+      if (tabId === 'productsTab' && !isProductsLoaded) {
+          loadAdminProducts();
+          isProductsLoaded = true;
+      }
+      if (tabId === 'categoriesTab' && !isCategoriesLoaded) {
+          loadAdminCategories();
+          isCategoriesLoaded = true;
+      }
+      if (tabId === 'banners' && !isBannersLoaded) {
+          loadBanners();
+          isBannersLoaded = true;
+      }
+      if (tabId === 'settingsTab' && !isSettingsLoaded) {
+          loadCurrentSettings();
+          isSettingsLoaded = true;
+      }
     });
   });
 
-  // Page Refresh होने पर URL चेक करने का लॉजिक
   const currentHash = window.location.hash.replace('#', '');
   if (currentHash) {
     const activeBtn = document.querySelector(`.tab-btn[data-tab="${currentHash}"]`);
     if (activeBtn) {
-      activeBtn.click(); // ऑटोमैटिकली उसी टैब को खोल देगा
+      activeBtn.click();
     }
   }
 
-  // Admin Login
+  // 🌟 Secure Login Code
   document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = document.getElementById('adminUsername').value.trim();
@@ -68,12 +86,13 @@ function setupAdminEvents() {
       const res = await fetch(`${CONFIG.BASE_URL}/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', 
         body: JSON.stringify({ username, password })
       });
       const data = await res.json();
-      if (data.success && data.token) {
-        adminToken = data.token;
-        localStorage.setItem('storeAdminToken', adminToken);
+      if (data.success) {
+        adminToken = true; 
+        localStorage.setItem('isLoggedIn', 'true'); 
         showDashboard();
       } else {
         alert(data.message || 'Invalid Credentials');
@@ -83,14 +102,20 @@ function setupAdminEvents() {
     }
   });
 
-  // Admin Logout
-  document.getElementById('adminLogoutBtn').addEventListener('click', () => {
-    localStorage.removeItem('storeAdminToken');
+  // 🌟 Secure Logout Code
+  document.getElementById('adminLogoutBtn').addEventListener('click', async () => {
+    try {
+      await fetch(`${CONFIG.BASE_URL}/admin/logout`, { 
+        method: 'POST', 
+        credentials: 'include' 
+      });
+    } catch(e) { console.log('Logout API error'); }
+    
+    localStorage.removeItem('isLoggedIn');
     adminToken = null;
     showLogin();
   });
 
-  // Category Add
   document.getElementById('addCategoryForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const editId = document.getElementById('editCategoryId').value;
@@ -108,7 +133,7 @@ function setupAdminEvents() {
     const method = editId ? 'PUT' : 'POST';
 
     try {
-      const res = await fetch(url, { method: method, headers: { Authorization: `Bearer ${adminToken}` }, body: formData });
+      const res = await fetch(url, { method: method, credentials: 'include', body: formData });
       const data = await res.json();
       if (data.success) {
         alert(editId ? 'Category Updated!' : 'Category Added!');
@@ -118,28 +143,30 @@ function setupAdminEvents() {
     } catch (err) { alert('Category save error'); }
   });
 
-  // Banner Add
   document.getElementById('addBannerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const imageFile = document.getElementById('bannerImageInput').files[0];
-    const targetLink = document.getElementById('bannerLinkInput').value.trim();
+    const selectedProductId = document.getElementById('bannerSelectedProductId').value;
 
     if (!imageFile) return alert('Banner Image upload karna zaroori hai!');
 
     const formData = new FormData();
     formData.append('bannerImage', imageFile);
-    if (targetLink) formData.append('targetLink', targetLink);
+    if (selectedProductId) {
+      formData.append('targetLink', selectedProductId);
+    }
 
     try {
       const res = await fetch(`${CONFIG.BASE_URL}/banners/add`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${adminToken}` },
+        credentials: 'include',
         body: formData
       });
       const data = await res.json();
       if (data.success) {
         alert('Banner add ho gaya!');
         document.getElementById('addBannerForm').reset();
+        document.getElementById('bannerSelectedProductId').value = ''; 
         loadBanners();
       } else {
         alert(data.message || 'Banner upload fail ho gaya');
@@ -149,7 +176,6 @@ function setupAdminEvents() {
     }
   });
 
-  // Global Settings Save
   document.getElementById('globalSettingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData();
@@ -159,6 +185,9 @@ function setupAdminEvents() {
     formData.append('announcement1', document.getElementById('announcement1').value);
     formData.append('announcement2', document.getElementById('announcement2').value);
     formData.append('announcement3', document.getElementById('announcement3').value);
+    formData.append('howToOrderTitle', document.getElementById('settingVideoTitle').value);
+    formData.append('howToOrderVideoUrl', document.getElementById('settingVideoUrl').value);
+    formData.append('pendingOrderExpiryHours', document.getElementById('settingExpiryHours').value);
 
     const qrFile = document.getElementById('settingQrFile').files[0];
     if (qrFile) formData.append('qrImage', qrFile);
@@ -166,7 +195,7 @@ function setupAdminEvents() {
     try {
       const res = await fetch(`${CONFIG.BASE_URL}/settings/update`, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${adminToken}` },
+        credentials: 'include',
         body: formData
       });
       const data = await res.json();
@@ -180,7 +209,6 @@ function setupAdminEvents() {
     }
   });
 
-  // Product Add / Update with Selective Image Management & Spinner
   document.getElementById('addProductForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const editId = document.getElementById('editProductId').value;
@@ -200,14 +228,12 @@ function setupAdminEvents() {
     formData.append('price', document.getElementById('pPrice').value);
     formData.append('mrp', document.getElementById('pMrp').value);
     formData.append('inStock', document.getElementById('pInStock').checked);
+    formData.append('priority', document.getElementById('productPriority').value || 0);
 
-    // Editor का कंटेंट अब सही से निकलेगा
     const descriptionHtml = quillEditor.root.innerHTML;
     formData.append('description', descriptionHtml);
-    // YouTube Link 
     formData.append('youtubeLink', document.getElementById('pYoutubeLink').value);
 
-    // Advanced Variants Extract karna
     let variantsArray = [];
     document.querySelectorAll('.variant-block').forEach(block => {
       const label = block.querySelector('.var-label').value;
@@ -259,7 +285,7 @@ function setupAdminEvents() {
     try {
       const res = await fetch(url, {
         method: method,
-        headers: { Authorization: `Bearer ${adminToken}` },
+        credentials: 'include',
         body: formData
       });
 
@@ -278,6 +304,29 @@ function setupAdminEvents() {
       resetProductSubmitBtn(isEditing);
     }
   });
+
+  const bannerImageInput = document.getElementById('bannerImageInput');
+  if (bannerImageInput) {
+    bannerImageInput.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+
+      img.onload = function () {
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
+        const isWidthValid = width >= 1250 && width <= 1310;
+        const isHeightValid = height >= 690 && height <= 750;
+
+        if (!isWidthValid || !isHeightValid) {
+          alert(`❌ बैनर का साइज़ गलत है!\n\nआपने ${width}x${height} पिक्सल की फोटो डाली है।\nकृपया बिल्कुल 'YouTube Thumbnail' (1280x720) साइज़ का ही बैनर अपलोड करें।`);
+          e.target.value = ''; 
+        }
+      };
+    });
+  }
 }
 
 function resetProductSubmitBtn(isEditing) {
@@ -289,18 +338,16 @@ function resetProductSubmitBtn(isEditing) {
   btnText.innerText = isEditing ? 'Update Product Details' : 'Save Product';
 }
 
-/* ========================================================
-   ORDERS SECTION LOGIC
-======================================================== */
 async function loadOrders() {
   const tbody = document.getElementById('ordersTableBody');
   try {
     const res = await fetch(`${CONFIG.BASE_URL}/orders/all`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
+      credentials: 'include'
     });
     const data = await res.json();
     if (data.success && data.orders) {
       allOrdersData = data.orders;
+      updateOrderTabCounts();
       filterOrders('All');
     } else {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Koi order nahi mila.</td></tr>';
@@ -309,8 +356,6 @@ async function loadOrders() {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Orders load error</td></tr>';
   }
 }
-
-
 
 function viewOrderDetail(orderId) {
   const order = allOrdersData.find(o => o._id === orderId);
@@ -339,7 +384,7 @@ function viewOrderDetail(orderId) {
       <p><strong>Order ID:</strong> <span style="color: #64748b;">${order.orderId || order._id}</span></p>
       <p><strong>Customer:</strong> ${order.shippingDetails?.name || 'N/A'}</p>
       <p><strong>Phone:</strong> <a href="tel:${order.customerPhone}" style="color: var(--primary); text-decoration: none;">📞 ${order.customerPhone}</a></p>
-      <p><strong>Address:</strong> ${order.shippingDetails?.address || ''}, ${order.shippingDetails?.city || ''} (PIN: ${order.shippingDetails?.pincode || ''})</p>
+      <p><strong>Address:</strong> </br> Street- ${order.shippingDetails?.address || ''} </br> City - ${order.shippingDetails?.city || ''} </br> State - ${order.shippingDetails?.state || ''} (Country - India) </br> PIN: ${order.shippingDetails?.pincode || ''}</p>
       <p><strong>Payment Mode:</strong> <span class="badge-paid">${order.paymentType}</span> (Online Paid: ₹${order.amountToPayOnline || 0})</p>
       <p style="margin-top: 4px;"><strong>Status:</strong> <span class="badge-status">${order.orderStatus}</span></p>
     </div>
@@ -356,73 +401,51 @@ function closeOrderModal() {
   document.getElementById('orderDetailModal').style.display = 'none';
 }
 
+// 🌟 Secure Order Updates
 async function updateOrderStatus(orderId, newStatus) {
   if (!confirm(`Mark this order as ${newStatus}?`)) return;
   try {
     const res = await fetch(`${CONFIG.BASE_URL}/orders/${orderId}/status`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${adminToken}`
-      },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ orderStatus: newStatus })
     });
     const data = await res.json();
-    if (data.success) {
-      loadOrders();
-    } else {
-      alert('Update failed: ' + data.message);
-    }
-  } catch (err) {
-    alert('Server Update error');
-  }
+    if (data.success) { loadOrders(); } 
+    else { alert('Update failed: ' + data.message); }
+  } catch (err) { alert('Server Update error'); }
 }
 
 async function dispatchOrder(orderId) {
   const courierName = document.getElementById(`courier_${orderId}`).value.trim();
   const trackingId = document.getElementById(`track_${orderId}`).value.trim();
-
-  if (!trackingId || !courierName) {
-    return alert('Dispatch ke liye Courier Name aur Tracking ID dono zaroori hain!');
-  }
-
+  if (!trackingId || !courierName) return alert('Dispatch ke liye Courier Name aur Tracking ID dono zaroori hain!');
+  
   try {
     const res = await fetch(`${CONFIG.BASE_URL}/orders/${orderId}/status`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${adminToken}`
-      },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ orderStatus: 'Dispatched', trackingId, courierName })
     });
     const data = await res.json();
-    if (data.success) {
-      loadOrders();
-    } else {
-      alert('Dispatch failed: ' + data.message);
-    }
-  } catch (err) {
-    alert('Server Update error');
-  }
+    if (data.success) { loadOrders(); } 
+    else { alert('Dispatch failed: ' + data.message); }
+  } catch (err) { alert('Server Update error'); }
 }
 
-/* ========================================================
-   PRODUCTS SECTION LOGIC
-======================================================== */
-// admin.js का अपडेटेड फंक्शन
 async function loadAdminProducts() {
   const tbody = document.getElementById('productsTableBody');
   if (!tbody) return;
 
   try {
-    // Yahan URL mein ?admin=true lagaya gaya hai
     const res = await fetch(`${CONFIG.BASE_URL}/products?admin=true`);
     const data = await res.json();
     allProductsList = data.products || data.data || [];
     document.getElementById('productCountBadge').innerText = `${allProductsList.length} Products`;
-
-    // Default load pe jo bhi current filter select hai uske hisaab se render karega
     handleProductSearch();
+    setupBannerProductSearch();
   } catch (err) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Failed to load products.</td></tr>';
   }
@@ -438,11 +461,8 @@ function renderProductsTable(products) {
   }
 
   tbody.innerHTML = products.map((p) => {
-    // 👉 बदलाव यहाँ है: पहले thumbnailUrl चेक करेगा, नहीं मिला तो पुरानी इमेज उठाएगा
     const displayImg = p.thumbnailUrl || ((p.images && p.images.length > 0) ? p.images[0] : (p.imageUrl || 'https://via.placeholder.com/60'));
-
     const categoryName = (p.category && p.category.name) ? p.category.name : (p.category || 'N/A');
-
     const stockBadge = p.inStock === false
       ? '<span style="color: red; font-size:0.75rem; font-weight:bold;">Out of Stock</span>'
       : '<span style="color: green; font-size:0.75rem; font-weight:bold;">In Stock</span>';
@@ -474,33 +494,10 @@ function renderProductsTable(products) {
   }).join('');
 }
 
-// function handleProductSearch() {
-//   const query = document.getElementById('productSearchInput').value.toLowerCase().trim();
-//   const sortVal = document.getElementById('productSortSelect').value;
-
-//   // पहले नाम से सर्च करें
-//   let filtered = allProductsList.filter(p => p.title.toLowerCase().includes(query));
-
-//   // फिर शॉर्टिंग अप्लाई करें (Date या Price)
-//   if (sortVal === 'newest') {
-//     filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-//   } else if (sortVal === 'oldest') {
-//     filtered.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-//   } else if (sortVal === 'priceHigh') {
-//     filtered.sort((a, b) => b.price - a.price);
-//   } else if (sortVal === 'priceLow') {
-//     filtered.sort((a, b) => a.price - b.price);
-//   }
-
-//   renderProductsTable(filtered);
-// }
-// ग्लोबल वेरिएबल टैब का स्टेटस ट्रैक करने के लिए
 let currentProductFilter = 'all';
 
 function setProductFilter(status) {
   currentProductFilter = status;
-
-  // UI में एक्टिव टैब का कलर बदलें
   document.querySelectorAll('#productFilterTabs .sub-tab-btn').forEach(btn => {
     if (btn.dataset.status === status) {
       btn.classList.add('active');
@@ -508,8 +505,6 @@ function setProductFilter(status) {
       btn.classList.remove('active');
     }
   });
-
-  // फ़िल्टर अप्लाई करें
   handleProductSearch();
 }
 
@@ -518,61 +513,53 @@ function handleProductSearch() {
   const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
   const sortSelect = document.getElementById('productSortSelect');
   const sortVal = sortSelect ? sortSelect.value : 'newest';
+  let filtered = [...allProductsList]; 
 
-  let filtered = allProductsList;
-
-  // 1. Status Filter (All / Active / Inactive)
   if (currentProductFilter === 'active') {
-    filtered = filtered.filter(p => p.inStock !== false); // Default active maante hain agar false nahi hai
+    filtered = filtered.filter(p => p.inStock !== false);
   } else if (currentProductFilter === 'inactive') {
     filtered = filtered.filter(p => p.inStock === false);
   }
 
-  // 2. Search Filter (By Title)
   if (query) {
     filtered = filtered.filter(p => p.title.toLowerCase().includes(query));
   }
 
-  // 3. Sorting
   if (sortVal === 'newest') {
-    filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   } else if (sortVal === 'oldest') {
-    filtered.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    filtered.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
   } else if (sortVal === 'priceHigh') {
-    filtered.sort((a, b) => b.price - a.price);
+    filtered.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
   } else if (sortVal === 'priceLow') {
-    filtered.sort((a, b) => a.price - b.price);
+    filtered.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
   }
 
-  // Count update karein
   const countBadge = document.getElementById('productCountBadge');
-  if (countBadge) {
-    countBadge.innerText = `${filtered.length} Products`;
-  }
+  if (countBadge) { countBadge.innerText = `${filtered.length} Products`; }
 
-  // Table render karein
   renderProductsTable(filtered);
 }
 
 function copyProductLink(productId) {
   const origin = window.location.origin;
   const directLink = `${origin}/frontend/product.html?id=${productId}`;
-
   navigator.clipboard.writeText(directLink).then(() => {
     alert('Product link copied to clipboard!\n' + directLink);
-  }).catch(() => {
-    prompt('Copy this link:', directLink);
-  });
+  }).catch(() => { prompt('Copy this link:', directLink); });
 }
 
-function openAddProductModal() {
+// 🌟 Categories Load Bug Fix
+async function openAddProductModal() {
+  if (!isCategoriesLoaded) {
+    await loadAdminCategories();
+    isCategoriesLoaded = true;
+  }
   editProductCurrentImages = [];
   document.getElementById('editProductId').value = '';
   document.getElementById('addProductForm').reset();
-
-  // Quill Editor को खाली करें
+  document.getElementById('productPriority').value = '0';
   if (quillEditor) quillEditor.root.innerHTML = '';
-
   document.getElementById('productFormTitle').innerText = 'Add New Product';
   document.getElementById('existingImagesContainer').style.display = 'none';
   document.getElementById('pImageFile').required = true;
@@ -581,10 +568,15 @@ function openAddProductModal() {
   document.getElementById('productFormWrapper').style.display = 'block';
   document.getElementById('productFormWrapper').scrollIntoView({ behavior: 'smooth' });
   document.getElementById('pYoutubeLink').value = '';
-  document.getElementById('variantsContainer').innerHTML = ''; // Pehle se pade variants clear karo
+  document.getElementById('variantsContainer').innerHTML = '';
 }
 
-function editProduct(productId) {
+// 🌟 Categories Load Bug Fix
+async function editProduct(productId) {
+  if (!isCategoriesLoaded) {
+    await loadAdminCategories();
+    isCategoriesLoaded = true;
+  }
   const product = allProductsList.find(p => p._id === productId);
   if (!product) return;
 
@@ -594,26 +586,20 @@ function editProduct(productId) {
   document.getElementById('pMrp').value = product.mrp || '';
   document.getElementById('pCustomAdvance').value = product.advancePayment || '';
   document.getElementById('pInStock').checked = product.inStock !== false;
+  document.getElementById('productPriority').value = product.priority || 0;
 
-  // Quill Editor में पुराना डिस्क्रिप्शन लोड करें
   if (quillEditor) quillEditor.root.innerHTML = product.description || '';
 
   const catVal = (product.category && product.category._id) ? product.category._id : product.category;
   if (catVal) document.getElementById('pCategory').value = catVal;
 
-  // 1. YouTube Link Fix: डेटाबेस से लिंक निकालकर इनपुट में डालना
   document.getElementById('pYoutubeLink').value = product.youtubeLink || '';
 
-  // 2. Variants Fix: पुराने वेरिएंट्स को एडिट मोड में लोड करना
-  document.getElementById('variantsContainer').innerHTML = ''; // पहले बॉक्स को खाली करें
+  document.getElementById('variantsContainer').innerHTML = '';
   if (product.variants && product.variants.length > 0) {
-    // अगर वेरिएंट्स सेव हैं, तो लूप चलाकर उनके ब्लॉक बनाएं
-    product.variants.forEach(variant => {
-      addVariantBlock(variant);
-    });
+    product.variants.forEach(variant => { addVariantBlock(variant); });
   }
 
-  // इमेजेस लोड करने का पुराना लॉजिक
   editProductCurrentImages = Array.isArray(product.images) ? [...product.images] : (product.imageUrl ? [product.imageUrl] : []);
   renderExistingImagesPreview();
 
@@ -669,20 +655,17 @@ function editCategory(id, name) {
   document.getElementById('catNameInput').value = name;
   document.getElementById('catSubmitBtn').textContent = 'Update';
   document.getElementById('catCancelBtn').style.display = 'inline-block';
-  document.getElementById('catImageInput').required = false; // Edit me image optional hai
+  document.getElementById('catImageInput').required = false;
 }
 
 async function deleteCategory(id) {
   if (!confirm('Are you sure you want to delete this category?')) return;
   try {
-    const res = await fetch(`${CONFIG.BASE_URL}/categories/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${adminToken}` } });
+    const res = await fetch(`${CONFIG.BASE_URL}/categories/${id}`, { method: 'DELETE', credentials: 'include' });
     if ((await res.json()).success) loadAdminCategories();
   } catch (err) { alert('Delete error'); }
 }
 
-/* ========================================================
-   CATEGORIES, BANNERS & SETTINGS
-======================================================== */
 async function loadAdminCategories() {
   const select = document.getElementById('pCategory');
   const list = document.getElementById('adminCategoryList');
@@ -708,19 +691,17 @@ async function loadCurrentSettings() {
     const res = await fetch(`${CONFIG.BASE_URL}/settings`);
     const data = await res.json();
     if (data.success && data.data) {
-      // 300 वाले बग का फिक्स (दोनों नामों को चेक करेगा)
       document.getElementById('settingDefaultAdvance').value = data.data.defaultAdvanceAmount || data.data.defaultAdvancePayment || 300;
       document.getElementById('settingUpiId').value = data.data.upiId || '';
       document.getElementById('settingWhatsapp').value = data.data.whatsappNumber || '';
-
-      // अनाउंसमेंट प्री-पॉपुलेट करने का फिक्स (ताकि नल न हों)
       document.getElementById('announcement1').value = data.data.announcement1 || '';
       document.getElementById('announcement2').value = data.data.announcement2 || '';
       document.getElementById('announcement3').value = data.data.announcement3 || '';
+      if (document.getElementById('settingVideoTitle')) document.getElementById('settingVideoTitle').value = data.data.howToOrderTitle || '';
+      if (document.getElementById('settingVideoUrl')) document.getElementById('settingVideoUrl').value = data.data.howToOrderVideoUrl || '';
+      if (document.getElementById('settingExpiryHours')) document.getElementById('settingExpiryHours').value = data.data.pendingOrderExpiryHours || 48;
     }
-  } catch (err) {
-    console.error('Settings error');
-  }
+  } catch (err) { console.error('Settings error'); }
 }
 
 async function loadBanners() {
@@ -745,60 +726,81 @@ async function loadBanners() {
     } else {
       list.innerHTML = '<li style="color: #64748b;">Koi banner upload nahi kiya gaya hai.</li>';
     }
-  } catch (err) {
-    list.innerHTML = '<li style="color: red;">Banners load karne mein error aayi.</li>';
-  }
+  } catch (err) { list.innerHTML = '<li style="color: red;">Banners load karne mein error aayi.</li>'; }
 }
+
+let currentOrderStatusFilter = 'All';
 
 function filterOrders(statusFilter = null) {
   if (statusFilter) {
-    document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+    currentOrderStatusFilter = statusFilter;
+    document.querySelectorAll('.sub-tabs-bar .sub-tab-btn').forEach(btn => {
       btn.classList.remove('active');
-      if (btn.innerText.includes(statusFilter)) btn.classList.add('active');
+      if (btn.getAttribute('onclick') === `filterOrders('${statusFilter}')`) {
+        btn.classList.add('active');
+      }
     });
   }
 
-  const activeBtn = document.querySelector('.sub-tab-btn.active');
-  const activeStatus = activeBtn ? activeBtn.innerText : 'All';
-
-  // Safety check lagaya gaya hai
   const searchInput = document.getElementById('orderSearchInput');
   const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-  const tbody = document.getElementById('ordersTableBody');
-  if (!tbody) return;
+  filteredOrdersList = allOrdersData; 
 
-  let filtered = allOrdersData;
-
-  // 1. Status Filter
-  if (!activeStatus.includes('All')) {
-    filtered = filtered.filter(o => o.orderStatus === activeStatus || activeStatus.includes(o.orderStatus));
+  if (currentOrderStatusFilter !== 'All') {
+    filteredOrdersList = filteredOrdersList.filter(o => o.orderStatus === currentOrderStatusFilter);
   }
 
-  // 2. Search Filter
   if (searchQuery) {
-    filtered = filtered.filter(o =>
+    filteredOrdersList = filteredOrdersList.filter(o =>
       (o.orderId && o.orderId.toLowerCase().includes(searchQuery)) ||
       (o._id && o._id.toLowerCase().includes(searchQuery)) ||
       (o.customerPhone && o.customerPhone.includes(searchQuery)) ||
       (o.shippingDetails?.name && o.shippingDetails.name.toLowerCase().includes(searchQuery))
     );
   }
+  
+  filteredOrdersList.sort((a, b) => {
+      const timeA = new Date(a.updatedAt || a.createdAt).getTime();
+      const timeB = new Date(b.updatedAt || b.createdAt).getTime();
+      return timeB - timeA; 
+  });
 
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">No orders found.</td></tr>`;
+  currentOrderPage = 1;
+  renderOrdersTable();
+}
+
+function renderOrdersTable() {
+  const tbody = document.getElementById('ordersTableBody');
+  if (!tbody) return;
+
+  const totalOrders = filteredOrdersList.length;
+  const totalPages = Math.ceil(totalOrders / ORDERS_PER_PAGE) || 1;
+
+  const prevBtn = document.getElementById('prevOrderPageBtn');
+  const nextBtn = document.getElementById('nextOrderPageBtn');
+  const pageInfo = document.getElementById('orderPageInfo');
+
+  if (prevBtn) prevBtn.disabled = currentOrderPage === 1;
+  if (nextBtn) nextBtn.disabled = currentOrderPage === totalPages;
+  if (pageInfo) pageInfo.innerText = `Page ${currentOrderPage} of ${totalPages} (${totalOrders} Orders)`;
+
+  if (totalOrders === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">No orders found.</td></tr>`;
     return;
   }
 
-  // HTML Rendering
-  tbody.innerHTML = filtered.map((o) => {
+  const startIndex = (currentOrderPage - 1) * ORDERS_PER_PAGE;
+  const endIndex = startIndex + ORDERS_PER_PAGE;
+  const paginatedOrders = filteredOrdersList.slice(startIndex, endIndex);
+
+  tbody.innerHTML = paginatedOrders.map((o) => {
     const productFormatted = o.products && o.products.length > 0
       ? o.products.map(p => `<strong>${p.quantity || 1} ×</strong> ${p.title}`).join('<br/>')
       : 'No product info';
 
     let actionHTML = '';
-    if (o.orderStatus === 'Pending') {
-      // Yahan Search function wale code mein Delete button lagaya gaya hai
+    if (o.orderStatus === 'Pending' || o.orderStatus === 'Screenshot Pending') {
       actionHTML = `
         <button onclick="updateOrderStatus('${o._id}', 'Accepted')" class="btn-action btn-accept" style="width: 100%; margin-bottom: 6px;">Accept Order</button>
         <button onclick="deleteSingleOrder('${o._id}')" class="btn-action" style="background-color: #dc3545; color: white; width: 100%;">Delete Order</button>
@@ -817,28 +819,45 @@ function filterOrders(statusFilter = null) {
           <strong>AWB:</strong> ${o.trackingId || 'N/A'}<br/>
           <strong>Via:</strong> ${o.courierName || 'Speed Post'}
         </div>
-        <button onclick="updateOrderStatus('${o._id}', 'Delivered')" class="btn-action btn-deliver" style="width: 100%;">Mark Delivered</button>
+        <button onclick="updateOrderStatus('${o._id}', 'Delivered')" class="btn-action btn-deliver" style="width: 100%; margin-bottom: 6px;">Mark Delivered</button>
+        <button onclick="updateOrderStatus('${o._id}', 'RTO')" class="btn-action" style="width: 100%; background: #991b1b; color: white;">Mark as RTO</button>
       `;
     } else if (o.orderStatus === 'Delivered') {
       actionHTML = `<span style="color: var(--success); font-weight: 700; font-size: 0.8rem;">✔ Delivered</span>`;
+    } else if (o.orderStatus === 'RTO') {
+      actionHTML = `<span style="color: #991b1b; font-weight: 700; font-size: 0.8rem;">↩ RTO (Returned)</span>`;
     }
 
-    const dateStr = new Date(o.createdAt).toLocaleDateString('en-IN');
+    const orderDateObj = new Date(o.createdAt);
+    const dateStr = orderDateObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = orderDateObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
+    let paymentBadgeText = o.paymentType === 'FULL_PAID' ? `Fully Paid (₹${o.amountToPayOnline || 0})` : `COD (Adv ₹${o.amountToPayOnline || 0})`;
+    let paymentHTML = `<span class="badge-paid">${paymentBadgeText}</span>`;
+
+    if (o.orderStatus === 'Pending' || o.orderStatus === 'Screenshot Pending') {
+      paymentHTML += ` <button onclick="openEditPaymentModal('${o._id}')" title="Edit Payment" style="background: none; border: none; cursor: pointer; color: #d97706; font-size: 1rem; margin-left: 6px; vertical-align: middle;">✏️</button>`;
+    }
+
     return `
       <tr>
         <td>
           <a href="javascript:void(0)" onclick="viewOrderDetail('${o._id}')" style="color: var(--primary); font-weight: 700; text-decoration: underline;">
             ${o.orderId || ('#' + o._id.slice(-6))}
-          </a><br/><small style="color: #64748b;">${dateStr}</small>
+          </a><br/><small style="color: #64748b;">📅 ${dateStr} <br/> 🕒 ${timeStr}</small>
         </td>
         <td>
           <strong>${o.shippingDetails?.name || 'N/A'}</strong><br/>
           <span style="font-size: 0.8rem;">📞 ${o.customerPhone}</span><br/>
-          <small style="color: #64748b;">${o.shippingDetails?.address || ''}, PIN: ${o.shippingDetails?.pincode || ''}</small>
+          <small style="color: #64748b;">
+            ${o.shippingDetails?.address || ''}, 
+            ${o.shippingDetails?.city || ''}, 
+            ${o.shippingDetails?.state || ''} - 
+            PIN: ${o.shippingDetails?.pincode || ''}
+          </small>
         </td>
         <td>
           <div style="margin-bottom: 4px; font-size: 0.82rem;">${productFormatted}</div>
-          <span class="badge-paid">${o.paymentType === 'FULL_PAID' ? 'Fully Paid' : 'COD (Adv ₹' + (o.amountToPayOnline || 0) + ')'}</span>
+          ${paymentHTML}
         </td>
         <td><span class="badge-status">${o.orderStatus || 'Pending'}</span></td>
         <td>${actionHTML}</td>
@@ -846,22 +865,27 @@ function filterOrders(statusFilter = null) {
     `;
   }).join('');
 }
+
+function changeOrderPage(direction) {
+  currentOrderPage += direction;
+  renderOrdersTable();
+}
+
 async function deleteProduct(id) {
   if (!confirm('Warning: Is product ko delete karna chahte hain?')) return;
   try {
-    const res = await fetch(`${CONFIG.BASE_URL}/products/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${adminToken}` } });
+    const res = await fetch(`${CONFIG.BASE_URL}/products/${id}`, { method: 'DELETE', credentials: 'include' });
     if ((await res.json()).success) loadAdminProducts();
   } catch (err) { alert('Product delete error'); }
 }
 async function deleteBanner(id) {
   if (!confirm('Are you sure you want to delete this banner?')) return;
   try {
-    const res = await fetch(`${CONFIG.BASE_URL}/banners/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${adminToken}` } });
+    const res = await fetch(`${CONFIG.BASE_URL}/banners/${id}`, { method: 'DELETE', credentials: 'include' });
     if ((await res.json()).success) loadBanners();
   } catch (err) { alert('Banner delete error'); }
 }
 
-// 1. Variant Block Banane ka function (Add aur Edit dono ke liye)
 function addVariantBlock(variantData = null) {
   const container = document.getElementById('variantsContainer');
   const block = document.createElement('div');
@@ -890,27 +914,17 @@ function addVariantBlock(variantData = null) {
       </label>
       <button type="button" onclick="this.parentElement.parentElement.remove()" style="background: var(--danger); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
     </div>
-    
-    <div class="options-container" style="padding-left: 10px; border-left: 2px solid #e2e8f0;">
-      <!-- Options yahan add honge -->
-    </div>
-    
+    <div class="options-container" style="padding-left: 10px; border-left: 2px solid #e2e8f0;"></div>
     <button type="button" onclick="addOptionRow(this.previousElementSibling)" style="background: #e2e8f0; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; margin-top: 10px; cursor: pointer;">+ Add Option (e.g. Red, XL)</button>
   `;
-
   container.appendChild(block);
   const optionsContainer = block.querySelector('.options-container');
 
-  // Edit Mode: Purane options load karna
   if (variantData && variantData.options && variantData.options.length > 0) {
     variantData.options.forEach(opt => addOptionRow(optionsContainer, opt.name, opt.price, hasDiffPrice));
-  } else {
-    // Add Mode: Default ek khali option box dena
-    addOptionRow(optionsContainer, '', '', hasDiffPrice);
-  }
+  } else { addOptionRow(optionsContainer, '', '', hasDiffPrice); }
 }
 
-// 2. Options (Red, Black) add karne ka function
 function addOptionRow(container, name = '', price = '', showPrice = false) {
   const row = document.createElement('div');
   row.className = 'option-row';
@@ -918,55 +932,207 @@ function addOptionRow(container, name = '', price = '', showPrice = false) {
 
   row.innerHTML = `
     <input type="text" class="opt-name" placeholder="Option (e.g. Red)" value="${name}" style="flex: 1; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px;" required>
-    
     <input type="number" class="opt-price" placeholder="New Price (₹)" value="${price}" style="flex: 1; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; display: ${showPrice ? 'block' : 'none'};" ${showPrice ? 'required' : ''}>
-    
     <button type="button" onclick="this.parentElement.remove()" style="color: var(--danger); border: none; background: none; font-size: 1.2rem; cursor: pointer;">&times;</button>
   `;
   container.appendChild(row);
 }
 
-// 3. Checkbox par tick karte hi Price wale box show/hide karna
 function toggleVariantPrices(checkbox) {
   const optionsContainer = checkbox.closest('.variant-block').querySelector('.options-container');
   const priceInputs = optionsContainer.querySelectorAll('.opt-price');
   priceInputs.forEach(input => {
     if (checkbox.checked) {
-      input.style.display = 'block';
-      input.required = true; // Price daalna compulsory ho jayega
+      input.style.display = 'block'; input.required = true;
     } else {
-      input.style.display = 'none';
-      input.required = false;
-      input.value = ''; // Hide hone par value clear kar dena
+      input.style.display = 'none'; input.required = false; input.value = '';
     }
   });
 }
-// Function to Delete Pending Orders
-async function deleteSingleOrder(orderId) {
-  const confirmDelete = confirm('Warning: Kya aap sach mein is pending order ko delete karna chahte hain? Ye wapas nahi aayega.');
-  
-  if (!confirmDelete) return;
 
+// 🌟 Secure Delete Order
+async function deleteSingleOrder(orderId) {
+  if (!confirm('Warning: Kya aap sach mein is pending order ko delete karna chahte hain? Ye wapas nahi aayega.')) return;
   try {
     const res = await fetch(`${CONFIG.BASE_URL}/orders/delete/${orderId}`, {
       method: 'DELETE',
-      headers: { 
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${adminToken}` // Security ke liye admin token pass kiya hai
-      }
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include'
     });
-    
     const data = await res.json();
-    
-    if (data.success) {
-      alert('Order successfully delete ho gaya!');
-      // Delete hone ke baad table ko turant refresh karne ke liye
-      loadOrders(); 
-    } else {
-      alert('Order delete nahi hua: ' + (data.message || 'Unknown error'));
-    }
-  } catch (err) {
-    console.error('Delete Error:', err);
-    alert('Server error, please check console.');
+    if (data.success) { alert('Order successfully delete ho gaya!'); loadOrders(); } 
+    else { alert('Order delete nahi hua: ' + (data.message || 'Unknown error')); }
+  } catch (err) { alert('Server error, please check console.'); }
+}
+
+let currentStaleOrders = [];
+
+async function openStaleOrdersModal() {
+  const expiryHours = Number(document.getElementById('settingExpiryHours')?.value) || 48;
+  const cutoffTime = new Date(Date.now() - (expiryHours * 60 * 60 * 1000));
+
+  currentStaleOrders = allOrdersData.filter(o => {
+    return (o.orderStatus === 'Pending' || o.orderStatus === 'Screenshot Pending') && new Date(o.createdAt) < cutoffTime;
+  });
+
+  const modal = document.getElementById('staleOrdersModal');
+  const infoText = document.getElementById('staleOrdersInfoText');
+  const container = document.getElementById('staleOrdersListContainer');
+
+  infoText.innerText = `Found ${currentStaleOrders.length} pending order(s) older than ${expiryHours} hours. Review and choose which ones to remove:`;
+
+  if (currentStaleOrders.length === 0) {
+    container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">No stale pending orders found!</p>';
+    document.getElementById('btnDeleteSelectedStale').disabled = true;
+  } else {
+    document.getElementById('btnDeleteSelectedStale').disabled = false;
+    container.innerHTML = currentStaleOrders.map(o => {
+      const orderDate = new Date(o.createdAt).toLocaleString('en-IN');
+      const products = o.products?.map(p => `${p.quantity || 1}x ${p.title}`).join(', ') || 'Item';
+      return `
+        <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; border-bottom: 1px solid var(--border); background: #fff; border-radius: 6px; margin-bottom: 6px;">
+          <input type="checkbox" class="stale-order-checkbox" value="${o._id}" checked onchange="updateStaleCount()" style="margin-top: 4px; width: 16px; height: 16px;">
+          <div style="flex: 1; font-size: 0.85rem;">
+            <strong>${o.orderId || o._id}</strong> — <span style="color: #64748b;">${orderDate}</span><br/>
+            <span>Customer: <strong>${o.shippingDetails?.name || 'N/A'}</strong> (${o.customerPhone})</span><br/>
+            <small style="color: #475569;">${products} | Pay: ₹${o.amountToPayOnline || 0}</small>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
+
+  updateStaleCount();
+  modal.style.display = 'flex';
+}
+
+function closeStaleOrdersModal() {
+  document.getElementById('staleOrdersModal').style.display = 'none';
+}
+
+function toggleSelectAllStale(masterCheckbox) {
+  const checkboxes = document.querySelectorAll('.stale-order-checkbox');
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateStaleCount();
+}
+
+function updateStaleCount() {
+  const checked = document.querySelectorAll('.stale-order-checkbox:checked').length;
+  const countEl = document.getElementById('selectedStaleCount');
+  if (countEl) countEl.innerText = `${checked} selected`;
+}
+
+// 🌟 Secure Stale Delete
+async function deleteSelectedStaleOrders() {
+  const selectedCheckboxes = document.querySelectorAll('.stale-order-checkbox:checked');
+  const idsToDelete = Array.from(selectedCheckboxes).map(cb => cb.value);
+  if (idsToDelete.length === 0) return alert('Please select at least one order to delete.');
+  if (!confirm(`Are you sure you want to delete ${idsToDelete.length} pending orders? This cannot be undone.`)) return;
+
+  try {
+    let deletedCount = 0;
+    for (const id of idsToDelete) {
+      const res = await fetch(`${CONFIG.BASE_URL}/orders/delete/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success) deletedCount++;
+    }
+    alert(`Successfully deleted ${deletedCount} orders!`);
+    closeStaleOrdersModal();
+    loadOrders();
+  } catch (err) { alert('Error deleting some orders.'); }
+}
+
+function openEditPaymentModal(orderId) {
+  const order = allOrdersData.find(o => o._id === orderId);
+  if (!order) return;
+  document.getElementById('epOrderId').value = orderId;
+  document.getElementById('epPaymentType').value = order.paymentType || 'ADVANCE_COD';
+  document.getElementById('epAmountOnline').value = order.amountToPayOnline || 0;
+  document.getElementById('editPaymentModal').style.display = 'flex';
+}
+
+function closeEditPaymentModal() {
+  document.getElementById('editPaymentModal').style.display = 'none';
+}
+
+// 🌟 Secure Save Payment
+async function savePaymentDetails() {
+  const orderId = document.getElementById('epOrderId').value;
+  const paymentType = document.getElementById('epPaymentType').value;
+  const amountToPayOnline = document.getElementById('epAmountOnline').value;
+  if (!confirm('Kya aap is order ki payment details update karna chahte hain?')) return;
+
+  try {
+    const res = await fetch(`${CONFIG.BASE_URL}/orders/${orderId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ paymentType: paymentType, amountToPayOnline: Number(amountToPayOnline) })
+    });
+    const data = await res.json();
+    if (data.success) { alert('Payment details successfully update ho gayi!'); closeEditPaymentModal(); loadOrders(); } 
+    else { alert('Update failed: ' + (data.message || 'Unknown error')); }
+  } catch (err) { alert('Server error while updating payment.'); }
+}
+
+function setupBannerProductSearch() {
+  const searchInput = document.getElementById('bannerProductSearch');
+  const dropdown = document.getElementById('bannerProductDropdown');
+  const hiddenId = document.getElementById('bannerSelectedProductId');
+  if (!searchInput || !dropdown) return;
+
+  searchInput.addEventListener('focus', () => { renderDropdown(allProductsList); dropdown.style.display = 'block'; });
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    const filtered = allProductsList.filter(p => p.title.toLowerCase().includes(query));
+    renderDropdown(filtered);
+    hiddenId.value = ''; 
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#bannerProductSearch') && !e.target.closest('#bannerProductDropdown')) {
+      dropdown.style.display = 'none';
+    }
+  });
+
+  function renderDropdown(products) {
+    dropdown.innerHTML = '';
+    const top7 = products.slice(0, 7);
+    if (top7.length === 0) { dropdown.innerHTML = '<li style="padding: 8px 12px; color: #64748b;">No products found</li>'; return; }
+    top7.forEach(p => {
+      const li = document.createElement('li');
+      li.textContent = p.title;
+      li.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-size: 0.9rem;';
+      li.addEventListener('mouseover', () => li.style.background = '#f8fafc');
+      li.addEventListener('mouseout', () => li.style.background = '#fff');
+      li.addEventListener('click', () => {
+        searchInput.value = p.title; hiddenId.value = p._id; dropdown.style.display = 'none';
+      });
+      dropdown.appendChild(li);
+    });
+  }
+}
+
+function updateOrderTabCounts() {
+  const counts = { 'All': allOrdersData.length, 'Screenshot Pending': 0, 'Pending': 0, 'Accepted': 0, 'Packed': 0, 'Dispatched': 0, 'Delivered': 0, 'RTO': 0 };
+  allOrdersData.forEach(order => { if (counts[order.orderStatus] !== undefined) counts[order.orderStatus]++; });
+
+  document.querySelectorAll('#ordersTab .sub-tabs-bar .sub-tab-btn').forEach(btn => {
+    const onclickAction = btn.getAttribute('onclick');
+    let label = '', count = 0;
+    if (onclickAction.includes('All')) { label = 'All Orders'; count = counts['All']; }
+    else if (onclickAction.includes('Screenshot Pending')) { label = 'SS Pending'; count = counts['Screenshot Pending']; } 
+    else if (onclickAction.includes('Pending')) { label = 'To Accept'; count = counts['Pending']; }
+    else if (onclickAction.includes('Accepted')) { label = 'To Pack'; count = counts['Accepted']; }
+    else if (onclickAction.includes('Packed')) { label = 'To Dispatch'; count = counts['Packed']; }
+    else if (onclickAction.includes('Dispatched')) { label = 'In Transit'; count = counts['Dispatched']; }
+    else if (onclickAction.includes('Delivered')) { label = 'Completed Orders'; count = counts['Delivered']; }
+    else if (onclickAction.includes('RTO')) { label = 'RTO (Returned)'; count = counts['RTO']; }
+
+    btn.innerHTML = `<div class="tab-count-val">${count}</div><div class="tab-count-label">${label}</div>`;
+  });
 }
